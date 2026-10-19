@@ -1,0 +1,15 @@
+{
+  "name": "RSX Tweaks",
+  "description": "Personal GNOME Shell tweaks: overview window captions, equal-size previews, spring animation, blurred top bar, clipboard history (Super+V), macOS-style lock and login screens.",
+  "uuid": "rsx@rsx",
+  "shell-version": [
+    "50"
+  ],
+  "settings-schema": "org.gnome.shell.extensions.rsx",
+  "version": 18,
+  "session-modes": [
+    "user",
+    "unlock-dialog",
+    "gdm"
+  ]
+}

@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Translations: rsx follows the system language. Russian systems get
+// Russian, everything else gets English (the source strings).
+//
+// rsx's own strings live in the RU table below. The bundled lock screen
+// module ships its own .mo catalogs, which we read directly (so it works
+// the same in the shell and in the prefs window).
+
+import GLib from 'gi://GLib';
+import Gettext from 'gettext';
+
+const LOCK_DOMAIN = 'wack-lockscreen-clock@rinzler69-wastaken.github.com';
+
+// System languages in priority order, e.g. ['ru_RU.UTF-8', 'ru_RU', 'ru', 'C'].
+const LANGUAGES = GLib.get_language_names().filter(l => l !== 'C' && l !== 'POSIX');
+export const isRussian = (LANGUAGES[0] ?? 'en').startsWith('ru');
+
+const RU = {
+    // Prefs: pages and groups
+    'Desktop': 'Рабочий стол',
+    'Lock & Login': 'Блокировка и вход',
+    'Window overview': 'Обзор окон',
+    'What you see when you press Super': 'То, что видно по клавише Super',
+    'Top bar': 'Верхняя панель',
+    'Clipboard': 'Буфер обмена',
+    'Lock screen': 'Экран блокировки',
+    'Look': 'Оформление',
+    'Mode & animations': 'Режим и анимации',
+    'Display & power': 'Экран и питание',
+    'Login screen': 'Экран входа',
+    'Other': 'Прочее',
+
+    // Prefs: overview
+    'Window captions': 'Подписи окон',
+    'Always show the icon and title under every window': 'Всегда показывать иконку и название под каждым окном',
+    'Same size windows': 'Окна одного размера',
+    'All previews have the same height, rows line up evenly': 'Все миниатюры одной высоты, ряды выстраиваются ровно',
+    'Spring animation': 'Пружинная анимация',
+    'Smooth opening and closing with a light bounce': 'Плавное открытие и закрытие с лёгким отскоком',
+
+    // Prefs: top bar
+    'Blurred top bar': 'Размытие панели',
+    'Translucent top bar with the wallpaper blurred under it': 'Полупрозрачная панель с размытыми обоями под ней',
+    'Blur strength': 'Сила размытия',
+
+    // Prefs: clipboard
+    'Clipboard history': 'История буфера обмена',
+    'Search copied text and images with a shortcut': 'Поиск по скопированному тексту и картинкам по горячей клавише',
+    'Paste right away': 'Сразу вставлять',
+    'Paste the picked item into the active window (Ctrl+V, Ctrl+Shift+V in terminals)':
+        'После выбора вставлять в активное окно (Ctrl+V, в терминале Ctrl+Shift+V)',
+    'How many to keep': 'Сколько хранить',
+    'The latest items; older ones are removed': 'Последние записи, старые удаляются',
+    'Shortcut (e.g. <Super>v)': 'Горячая клавиша (например <Super>v)',
+    'Clear history': 'Очистить историю',
+    'Clear': 'Очистить',
+
+    // Prefs: lock & login
+    'macOS-style lock screen': 'Экран блокировки в стиле macOS',
+    'Clock at the top, avatar and password field at the bottom, blur while typing the password':
+        'Часы сверху, аватар и поле пароля снизу, размытие при вводе пароля',
+    'English layout': 'Английская раскладка',
+    'Switch to English when locking, back to the previous layout after unlocking':
+        'При блокировке включать английскую, после разблокировки возвращать прежнюю',
+    'macOS-style login screen': 'Экран входа в стиле macOS',
+    'Your wallpaper, clock and avatars, like on the lock screen': 'Ваши обои, часы и аватары как на экране блокировки',
+    'System install': 'Установка в систему',
+    'The login screen uses a copy of rsx: after changes run': 'Экран входа берёт копию rsx: после изменений запустите',
+    'Clear look cache': 'Очистить кэш оформления',
+    'Removes temporary data used for the wallpaper and colour matching. It is rebuilt automatically.':
+        'Удаляет временные данные для обоев и подстройки цвета. Они создадутся заново автоматически.',
+    'Look cache cleared': 'Кэш оформления очищен',
+    "Couldn't clear the cache:": 'Не удалось очистить кэш:',
+
+    // Clipboard popup
+    'Search the clipboard': 'Поиск в буфере обмена',
+    '↑↓ select   ↵ paste   Del remove   Esc close': '↑↓ выбрать   ↵ вставить   Del удалить   Esc закрыть',
+    'Nothing found': 'Ничего не найдено',
+    'History is empty. Copy something': 'История пуста. Скопируйте что-нибудь',
+    'Image': 'Изображение',
+    'now': 'сейчас',
+    '%d min': '%d мин',
+    '%d h': '%d ч',
+    '%d d': '%d д',
+    '%d B': '%d Б',
+    '%d KB': '%d КБ',
+    '%s MB': '%s МБ',
+};
+
+// rsx's own strings.
+export function _(str) {
+    return isRussian ? (RU[str] ?? str) : str;
+}
+
+// Same, with a single %d / %s placeholder.
+export function _f(str, value) {
+    return _(str).replace(/%[ds]/, value);
+}
+
+// Parse a GNU .mo file into Map(msgid -> msgstr). Plural entries map their
+// singular msgid to the first form.
+function loadMo(path) {
+    const map = new Map();
+    let bytes;
+    try {
+        [, bytes] = GLib.file_get_contents(path);
+    } catch {
+        return map;
+    }
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const le = view.getUint32(0, true) === 0x950412de;
+    if (!le && view.getUint32(0, false) !== 0x950412de)
+        return map;
+
+    const count = view.getUint32(8, le);
+    const origTable = view.getUint32(12, le);
+    const transTable = view.getUint32(16, le);
+    const decoder = new TextDecoder();
+    const str = (table, i) => {
+        const len = view.getUint32(table + i * 8, le);
+        const off = view.getUint32(table + i * 8 + 4, le);
+        return decoder.decode(bytes.subarray(off, off + len));
+    };
+    for (let i = 0; i < count; i++) {
+        const id = str(origTable, i).split('\0')[0];
+        const tr = str(transTable, i).split('\0')[0];
+        if (id && tr)
+            map.set(id, tr);
+    }
+    return map;
+}
+
+// Lock screen strings that mention the separate "WACK Shell" add-on, which
+// rsx doesn't use: never show them.
+const LOCK_HIDDEN = new Set([
+    'Requires WACK Shell to be installed and enabled.',
+    'Requires WACK Shell to be enabled.',
+]);
+
+// Translator for the bundled lock screen module, in the system language.
+export function lockTranslator(extensionPath) {
+    let map = new Map();
+    for (const lang of LANGUAGES) {
+        const code = lang.split('.')[0].split('@')[0];
+        const path = `${extensionPath}/wack/locale/${code}/LC_MESSAGES/${LOCK_DOMAIN}.mo`;
+        if (GLib.file_test(path, GLib.FileTest.EXISTS)) {
+            map = loadMo(path);
+            break;
+        }
+        if (code.startsWith('en'))
+            break; // English is the source language
+    }
+    return str => (LOCK_HIDDEN.has(str) ? '' : map.get(str) ?? str);
+}
+
+// GNOME Shell's own strings (e.g. "Click or press a key to unlock").
+export function shellTranslator() {
+    const domain = Gettext.domain('gnome-shell');
+    return str => domain.gettext(str);
+}
