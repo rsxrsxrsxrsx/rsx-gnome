@@ -37,6 +37,11 @@
       <summary>Ctrl shortcuts work in any keyboard layout</summary>
     </key>
 
+    <key name="lock-smoke" type="b">
+      <default>true</default>
+      <summary>Colourful smoke following the mouse on the lock screen</summary>
+    </key>
+
     <key name="cupertino-login" type="b">
       <default>true</default>
       <summary>macOS-style login screen (needs install-gdm.sh)</summary>

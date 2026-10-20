@@ -132,6 +132,8 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('Clock at the top, avatar and password field at the bottom, blur while typing the password')));
         lock.add(checkRow(settings, 'english-on-lock', _('English layout'),
             _('Switch to English when locking, back to the previous layout after unlocking')));
+        lock.add(checkRow(settings, 'lock-smoke', _('Smoke under the mouse'),
+            _('Colourful smoke follows the pointer on the lock screen')));
 
         // Lock screen look settings (from the bundled lock screen module).
         const signalIds = [];

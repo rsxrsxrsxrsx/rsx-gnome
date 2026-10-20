@@ -69,6 +69,8 @@ const RU = {
     'English layout': 'Английская раскладка',
     'Switch to English when locking, back to the previous layout after unlocking':
         'При блокировке включать английскую, после разблокировки возвращать прежнюю',
+    'Smoke under the mouse': 'Дым за мышкой',
+    'Colourful smoke follows the pointer on the lock screen': 'Цветной дым тянется за курсором на экране блокировки',
     'macOS-style login screen': 'Экран входа в стиле macOS',
     'Your wallpaper, clock and avatars, like on the lock screen': 'Ваши обои, часы и аватары как на экране блокировки',
     'System install': 'Установка в систему',

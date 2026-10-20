@@ -21,6 +21,7 @@ import {WackLock} from './wack/wackLock.js';
 import {CupertinoLogin} from './login.js';
 import {ClipboardHistory} from './clipboard.js';
 import {LatinShortcuts} from './layoutShortcuts.js';
+import {LockSmoke} from './smoke.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 
 function scaleFactor() {
@@ -608,6 +609,7 @@ const FEATURES = {
     'blur-panel': BlurredPanel,
     'cupertino-lock': CupertinoLock,
     'english-on-lock': EnglishOnLock,
+    'lock-smoke': LockSmoke,
     'cupertino-login': CupertinoLogin,
     'clipboard-history': ClipboardHistory,
     'latin-shortcuts': LatinShortcuts,
