@@ -45,6 +45,9 @@ function syncBar(osd) {
     const value = osd._rsxLevel;
     bar.visible = value != null;
     osd._level.visible = false;
+    // No device name ("Analog Output") under the volume bar, like macOS.
+    if (value != null)
+        osd._label.visible = false;
     if (value != null) {
         const max = osd._level.maximum_value > 0 ? osd._level.maximum_value : 1;
         const lit = Math.round(Math.min(value / max, 1) * SEGMENTS);
