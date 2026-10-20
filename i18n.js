@@ -44,6 +44,16 @@ const RU = {
     'Translucent top bar with the wallpaper blurred under it': 'Полупрозрачная панель с размытыми обоями под ней',
     'Blur strength': 'Сила размытия',
 
+    // Prefs: appearance
+    'Appearance': 'Внешний вид',
+    'macOS-style Alt+Tab': 'Alt+Tab как в macOS',
+    'Big app icons in a row; windows of one app with Alt+`':
+        'Крупные иконки приложений в ряд, окна одного приложения — Alt+`',
+    'Rounded screen corners': 'Скруглённые углы экрана',
+    'Like on a MacBook display': 'Как у экрана MacBook',
+    'No world clocks in the calendar': 'Без мировых часов в календаре',
+    'Hide the "Add World Clocks…" button': 'Скрыть кнопку «Add World Clocks…»',
+
     // Prefs: keyboard
     'Keyboard': 'Клавиатура',
     'Shortcuts in any layout': 'Сочетания в любой раскладке',
@@ -70,7 +80,7 @@ const RU = {
     'Switch to English when locking, back to the previous layout after unlocking':
         'При блокировке включать английскую, после разблокировки возвращать прежнюю',
     'Smoke under the mouse': 'Дым за мышкой',
-    'Colourful smoke follows the pointer on the lock screen': 'Цветной дым тянется за курсором на экране блокировки',
+    'Colourful smoke follows the pointer on the lock and login screens': 'Цветной дым тянется за курсором на экране блокировки и входа',
     'macOS-style login screen': 'Экран входа в стиле macOS',
     'Your wallpaper, clock and avatars, like on the lock screen': 'Ваши обои, часы и аватары как на экране блокировки',
     'System install': 'Установка в систему',

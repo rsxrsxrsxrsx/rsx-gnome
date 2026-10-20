@@ -68,6 +68,14 @@ export default class RsxPreferences extends ExtensionPreferences {
         settings.bind('blur-panel', blurRow, 'sensitive', Gio.SettingsBindFlags.GET);
         panel.add(blurRow);
 
+        const look = group(page, _('Appearance'));
+        look.add(checkRow(settings, 'mac-switcher', _('macOS-style Alt+Tab'),
+            _('Big app icons in a row; windows of one app with Alt+`')));
+        look.add(checkRow(settings, 'screen-corners', _('Rounded screen corners'),
+            _('Like on a MacBook display')));
+        look.add(checkRow(settings, 'hide-world-clocks', _('No world clocks in the calendar'),
+            _('Hide the "Add World Clocks…" button')));
+
         const keyboard = group(page, _('Keyboard'));
         keyboard.add(checkRow(settings, 'latin-shortcuts', _('Shortcuts in any layout'),
             _('Ctrl+C, Ctrl+V, Ctrl+Shift+V and others work in the Russian layout in every app')));
@@ -133,7 +141,7 @@ export default class RsxPreferences extends ExtensionPreferences {
         lock.add(checkRow(settings, 'english-on-lock', _('English layout'),
             _('Switch to English when locking, back to the previous layout after unlocking')));
         lock.add(checkRow(settings, 'lock-smoke', _('Smoke under the mouse'),
-            _('Colourful smoke follows the pointer on the lock screen')));
+            _('Colourful smoke follows the pointer on the lock and login screens')));
 
         // Lock screen look settings (from the bundled lock screen module).
         const signalIds = [];

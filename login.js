@@ -22,6 +22,7 @@ import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import {LoginDialog} from 'resource:///org/gnome/shell/gdm/loginDialog.js';
 
 import {WackClock} from './wack/src/main/wackClock.js';
+import {SmokeActor} from './smoke.js';
 
 const LOGIN_DIR = '/var/tmp/rsx-login';
 
@@ -182,6 +183,10 @@ const BACKGROUND_SIZE = {
 };
 
 class GreeterLook {
+    constructor(settings) {
+        this._settings = settings;
+    }
+
     enable() {
         this._patchLayout();
         const dialog = Main.screenShield?._dialog;
@@ -227,6 +232,7 @@ class GreeterLook {
 
             this._createBackground(findManifest());
             this._createClock();
+            this._createSmoke();
             this._setupUserList(dialog);
 
             // Blur the wallpaper while the password prompt is open.
@@ -347,6 +353,25 @@ class GreeterLook {
             this._clockBin.set_style(`padding-top: ${Math.round(monitor.height * CLOCK_TOP)}px;`);
     }
 
+    // -- smoke under the mouse, like on the lock screen ----------------------
+
+    _createSmoke() {
+        if (!this._settings.get_boolean('lock-smoke'))
+            return;
+        this._smoke = new SmokeActor();
+        this._smoke.add_constraint(new Clutter.BindConstraint({
+            source: global.stage,
+            coordinate: Clutter.BindCoordinate.SIZE,
+        }));
+        const group = Main.screenShield._lockDialogGroup;
+        group.insert_child_above(this._smoke, this._bgGroup);
+        group.connectObject('captured-event', (_a, event) => {
+            if (event.type() === Clutter.EventType.MOTION)
+                this._smoke?.pointerMoved(...event.get_coords());
+            return Clutter.EVENT_PROPAGATE;
+        }, this);
+    }
+
     // -- user list: a row of avatars -----------------------------------------
 
     _setupUserList(dialog) {
@@ -397,6 +422,9 @@ class GreeterLook {
             dialog.queue_relayout();
         }
         Main.panel.statusArea.dateMenu?.container.show();
+        Main.screenShield?._lockDialogGroup?.disconnectObject(this);
+        this._smoke?.destroy();
+        this._smoke = null;
         this._clockBin?.destroy();
         this._bgGroup?.destroy();
         this._clockBin = this._clock = this._bgGroup = this._dialog = null;
@@ -418,7 +446,7 @@ export class CupertinoLogin {
 
     enable() {
         if (Main.sessionMode.isGreeter)
-            this._impl = new GreeterLook();
+            this._impl = new GreeterLook(this._settings);
         else if (!Main.sessionMode.isLocked)
             this._impl = new WallpaperExport(this._settings);
         this._impl?.enable();

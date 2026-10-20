@@ -22,6 +22,8 @@ import {CupertinoLogin} from './login.js';
 import {ClipboardHistory} from './clipboard.js';
 import {LatinShortcuts} from './layoutShortcuts.js';
 import {LockSmoke} from './smoke.js';
+import {ScreenCorners} from './corners.js';
+import {MacSwitcher} from './switcher.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 
 function scaleFactor() {
@@ -601,12 +603,37 @@ class EnglishOnLock {
 }
 
 // ---------------------------------------------------------------------------
+// No "Add World Clocks…" button in the calendar menu. GNOME shows it again
+// whenever the clocks app changes, so hide it each time it appears.
+// ---------------------------------------------------------------------------
+
+class HideWorldClocks {
+    enable() {
+        this._item = Main.panel.statusArea.dateMenu?._clocksItem ?? null;
+        this._item?.connectObject('notify::visible', () => {
+            if (this._item.visible)
+                this._item.hide();
+        }, this);
+        this._item?.hide();
+    }
+
+    disable() {
+        this._item?.disconnectObject(this);
+        this._item?._sync?.();
+        this._item = null;
+    }
+}
+
+// ---------------------------------------------------------------------------
 
 const FEATURES = {
     'window-captions': WindowCaptions,
     'equal-window-sizes': EqualWindowSizes,
     'spring-animation': SpringOverview,
     'blur-panel': BlurredPanel,
+    'screen-corners': ScreenCorners,
+    'hide-world-clocks': HideWorldClocks,
+    'mac-switcher': MacSwitcher,
     'cupertino-lock': CupertinoLock,
     'english-on-lock': EnglishOnLock,
     'lock-smoke': LockSmoke,
@@ -616,7 +643,7 @@ const FEATURES = {
 };
 
 // On the login screen (GDM) only the login look runs.
-const GREETER_FEATURES = ['cupertino-login'];
+const GREETER_FEATURES = ['cupertino-login', 'screen-corners'];
 
 export default class RsxExtension extends Extension {
     enable() {

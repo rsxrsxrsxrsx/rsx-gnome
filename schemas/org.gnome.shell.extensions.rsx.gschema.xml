@@ -22,6 +22,21 @@
       <default>30</default>
       <summary>Top bar blur strength</summary>
     </key>
+    <key name="mac-switcher" type="b">
+      <default>true</default>
+      <summary>macOS-style Alt+Tab: app icons in a row on frosted glass</summary>
+    </key>
+
+    <key name="hide-world-clocks" type="b">
+      <default>true</default>
+      <summary>Hide the world clocks button in the calendar menu</summary>
+    </key>
+
+    <key name="screen-corners" type="b">
+      <default>true</default>
+      <summary>Rounded screen corners</summary>
+    </key>
+
     <key name="cupertino-lock" type="b">
       <default>true</default>
       <summary>macOS-style lock screen</summary>

@@ -553,3 +553,27 @@
     color: rgba(255, 255, 255, 0.4);
     padding-top: 2px;
 }
+
+/* Alt+Tab like macOS */
+.rsx-mac-switcher .switcher-list {
+  padding: 14px;
+  border-radius: 28px;
+}
+.rsx-mac-switcher .switcher-list .switcher-list-item-container {
+  spacing: 6px;
+}
+.rsx-mac-switcher .switcher-list .item-box {
+  padding: 10px 10px 6px;
+  border-radius: 18px;
+  background-color: transparent;
+  box-shadow: none;
+}
+.rsx-mac-switcher .switcher-list .item-box:selected,
+.rsx-mac-switcher .switcher-list .item-box:highlighted {
+  background-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none !important;
+}
+.rsx-mac-switcher .switcher-list .item-box:outlined {
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none !important;
+}
