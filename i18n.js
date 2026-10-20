@@ -44,7 +44,18 @@ const RU = {
     'Translucent top bar with the wallpaper blurred under it': 'Полупрозрачная панель с размытыми обоями под ней',
     'Blur strength': 'Сила размытия',
 
+    // Prefs: windows
+    'Windows': 'Окна',
+    'Open in the center': 'Открывать по центру',
+    'New windows open in the middle of the screen with the mouse': 'Новые окна открываются посередине экрана, где сейчас мышка',
+    'Spring open and close': 'Пружинное открытие и закрытие',
+    'Windows grow in with a light bounce and shrink away when closed':
+        'Окна появляются с лёгким отскоком и плавно уменьшаются при закрытии',
+
     // Prefs: appearance
+    'macOS-style volume popup': 'Индикатор громкости как в macOS',
+    'A square with a big icon and a bar of segments for volume and brightness':
+        'Квадрат с большой иконкой и шкалой из делений для громкости и яркости',
     'Appearance': 'Внешний вид',
     'macOS-style Alt+Tab': 'Alt+Tab как в macOS',
     'Big app icons in a row; windows of one app with Alt+`':

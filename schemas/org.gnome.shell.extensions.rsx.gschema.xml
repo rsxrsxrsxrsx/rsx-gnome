@@ -22,6 +22,21 @@
       <default>30</default>
       <summary>Top bar blur strength</summary>
     </key>
+    <key name="center-windows" type="b">
+      <default>true</default>
+      <summary>Open new windows centered on the screen with the mouse</summary>
+    </key>
+
+    <key name="spring-windows" type="b">
+      <default>true</default>
+      <summary>Spring animation when windows open and close</summary>
+    </key>
+
+    <key name="mac-osd" type="b">
+      <default>true</default>
+      <summary>macOS-style volume and brightness popup</summary>
+    </key>
+
     <key name="mac-switcher" type="b">
       <default>true</default>
       <summary>macOS-style Alt+Tab: app icons in a row on frosted glass</summary>

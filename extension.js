@@ -24,6 +24,8 @@ import {LatinShortcuts} from './layoutShortcuts.js';
 import {LockSmoke} from './smoke.js';
 import {ScreenCorners} from './corners.js';
 import {MacSwitcher} from './switcher.js';
+import {CenterWindows, SpringWindows} from './windows.js';
+import {MacOsd} from './osd.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 
 function scaleFactor() {
@@ -634,6 +636,9 @@ const FEATURES = {
     'screen-corners': ScreenCorners,
     'hide-world-clocks': HideWorldClocks,
     'mac-switcher': MacSwitcher,
+    'center-windows': CenterWindows,
+    'spring-windows': SpringWindows,
+    'mac-osd': MacOsd,
     'cupertino-lock': CupertinoLock,
     'english-on-lock': EnglishOnLock,
     'lock-smoke': LockSmoke,

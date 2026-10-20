@@ -68,7 +68,15 @@ export default class RsxPreferences extends ExtensionPreferences {
         settings.bind('blur-panel', blurRow, 'sensitive', Gio.SettingsBindFlags.GET);
         panel.add(blurRow);
 
+        const windows = group(page, _('Windows'));
+        windows.add(checkRow(settings, 'center-windows', _('Open in the center'),
+            _('New windows open in the middle of the screen with the mouse')));
+        windows.add(checkRow(settings, 'spring-windows', _('Spring open and close'),
+            _('Windows grow in with a light bounce and shrink away when closed')));
+
         const look = group(page, _('Appearance'));
+        look.add(checkRow(settings, 'mac-osd', _('macOS-style volume popup'),
+            _('A square with a big icon and a bar of segments for volume and brightness')));
         look.add(checkRow(settings, 'mac-switcher', _('macOS-style Alt+Tab'),
             _('Big app icons in a row; windows of one app with Alt+`')));
         look.add(checkRow(settings, 'screen-corners', _('Rounded screen corners'),
