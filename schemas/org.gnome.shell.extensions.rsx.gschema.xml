@@ -32,6 +32,11 @@
       <summary>Switch to the English layout on the lock screen</summary>
     </key>
 
+    <key name="latin-shortcuts" type="b">
+      <default>true</default>
+      <summary>Ctrl shortcuts work in any keyboard layout</summary>
+    </key>
+
     <key name="cupertino-login" type="b">
       <default>true</default>
       <summary>macOS-style login screen (needs install-gdm.sh)</summary>

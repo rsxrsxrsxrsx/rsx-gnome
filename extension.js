@@ -20,6 +20,7 @@ import {ControlsManager, ControlsState} from 'resource:///org/gnome/shell/ui/ove
 import {WackLock} from './wack/wackLock.js';
 import {CupertinoLogin} from './login.js';
 import {ClipboardHistory} from './clipboard.js';
+import {LatinShortcuts} from './layoutShortcuts.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 
 function scaleFactor() {
@@ -609,6 +610,7 @@ const FEATURES = {
     'english-on-lock': EnglishOnLock,
     'cupertino-login': CupertinoLogin,
     'clipboard-history': ClipboardHistory,
+    'latin-shortcuts': LatinShortcuts,
 };
 
 // On the login screen (GDM) only the login look runs.

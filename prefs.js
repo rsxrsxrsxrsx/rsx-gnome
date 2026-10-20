@@ -68,6 +68,10 @@ export default class RsxPreferences extends ExtensionPreferences {
         settings.bind('blur-panel', blurRow, 'sensitive', Gio.SettingsBindFlags.GET);
         panel.add(blurRow);
 
+        const keyboard = group(page, _('Keyboard'));
+        keyboard.add(checkRow(settings, 'latin-shortcuts', _('Shortcuts in any layout'),
+            _('Ctrl+C, Ctrl+V, Ctrl+Shift+V and others work in the Russian layout in every app')));
+
         const clip = group(page, _('Clipboard'));
         clip.add(checkRow(settings, 'clipboard-history', _('Clipboard history'),
             _('Search copied text and images with a shortcut')));

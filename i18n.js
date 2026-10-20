@@ -44,6 +44,12 @@ const RU = {
     'Translucent top bar with the wallpaper blurred under it': 'Полупрозрачная панель с размытыми обоями под ней',
     'Blur strength': 'Сила размытия',
 
+    // Prefs: keyboard
+    'Keyboard': 'Клавиатура',
+    'Shortcuts in any layout': 'Сочетания в любой раскладке',
+    'Ctrl+C, Ctrl+V, Ctrl+Shift+V and others work in the Russian layout in every app':
+        'Ctrl+C, Ctrl+V, Ctrl+Shift+V и другие работают в русской раскладке во всех программах',
+
     // Prefs: clipboard
     'Clipboard history': 'История буфера обмена',
     'Search copied text and images with a shortcut': 'Поиск по скопированному тексту и картинкам по горячей клавише',
