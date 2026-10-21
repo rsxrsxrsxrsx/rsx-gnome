@@ -615,3 +615,127 @@
 .rsx-hud-seg:checked {
   background-color: white;
 }
+
+/* Lock screen greeting above the avatar */
+.rsx-greeting {
+  font-size: 20pt;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  padding-bottom: 14px;
+}
+
+/* Dynamic island */
+.rsx-island {
+  background-color: black;
+  border-radius: 999px;
+  padding: 8px 18px 8px 8px;
+  min-width: 180px;
+  max-width: 460px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.rsx-island-row {
+  spacing: 12px;
+}
+.rsx-island-cover {
+  border-radius: 8px;
+}
+.rsx-island-icon {
+  padding: 2px 0 2px 6px;
+}
+.rsx-island-text {
+  max-width: 340px;
+}
+.rsx-island-title {
+  color: white;
+  font-weight: 600;
+  font-size: 10.5pt;
+}
+.rsx-island-subtitle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9.5pt;
+}
+.rsx-island-badge {
+  icon-size: 14px;
+  color: #6ee07a;
+  padding-left: 6px;
+}
+.rsx-island-level {
+  padding: 3px 4px 3px 12px;
+}
+.rsx-island-level StIcon {
+  color: white;
+}
+.rsx-island-track {
+  width: 170px;
+  height: 6px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+.rsx-island-fill {
+  border-radius: 3px;
+  background-color: white;
+}
+
+/* Now playing on the lock screen */
+.rsx-lock-media {
+  spacing: 6px;
+  padding: 20px 28px 16px;
+  border-radius: 28px;
+  background-color: rgba(0, 0, 0, 0.28);
+}
+.rsx-lock-media-cover {
+  margin-bottom: 10px;
+}
+.rsx-cover-placeholder {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.rsx-lock-media-title {
+  color: white;
+  font-size: 14pt;
+  font-weight: 700;
+  max-width: 260px;
+}
+.rsx-lock-media-artist {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11pt;
+  max-width: 260px;
+}
+.rsx-lock-media-controls {
+  spacing: 24px;
+  padding-top: 8px;
+}
+.rsx-lock-media-button {
+  padding: 10px;
+  border-radius: 999px;
+  color: white;
+}
+.rsx-lock-media-button StIcon {
+  icon-size: 22px;
+}
+.rsx-lock-media-button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+.rsx-lock-media-play StIcon {
+  icon-size: 30px;
+}
+
+/* Runner: emoji when he gets hit, stars when knocked out */
+.rsx-runner-label {
+    font-size: 30px;
+}
+
+.rsx-runner-small {
+    font-size: 20px;
+}
+
+.rsx-runner-bubble {
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #1c1c1e;
+    border-radius: 14px;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}

@@ -2,6 +2,7 @@
 
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
@@ -9,7 +10,7 @@ import {buildGeneralGroup} from './wack/src/prefs/groups/generalGroup.js';
 import {buildModeGroup} from './wack/src/prefs/groups/modeGroup.js';
 import {buildDisplayPowerGroup} from './wack/src/prefs/groups/displayPowerGroup.js';
 import {flushWackCache} from './wack/src/prefs/prefsUtils.js';
-import {_, lockTranslator} from './i18n.js';
+import {_, lockTranslator, setLanguage} from './i18n.js';
 
 function checkRow(settings, key, title, subtitle) {
     const check = new Gtk.CheckButton({valign: Gtk.Align.CENTER});
@@ -30,9 +31,45 @@ export default class RsxPreferences extends ExtensionPreferences {
         const settings = this.getSettings();
         window.set_default_size(720, 820);
         window.set_search_enabled(true);
+        setLanguage(settings.get_string('language'));
+        this._fillPages(window, settings);
 
-        window.add(this._desktopPage(settings));
-        window.add(this._lockPage(window, settings));
+        // A new language: build the pages again in it.
+        settings.connect('changed::language', () => {
+            setLanguage(settings.get_string('language'));
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                const visible = window.get_visible_page_name?.();
+                for (const page of this._pages)
+                    window.remove(page);
+                this._fillPages(window, settings);
+                if (visible)
+                    window.set_visible_page_name(visible);
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+    }
+
+    _fillPages(window, settings) {
+        this._pages = [this._desktopPage(settings), this._lockPage(window, settings)];
+        this._pages[0].name = 'desktop';
+        this._pages[1].name = 'lock';
+        this._pages.forEach(page => window.add(page));
+    }
+
+    _languageGroup(page, settings) {
+        const values = ['system', 'ru', 'en'];
+        const row = new Adw.ComboRow({
+            title: _('Language'),
+            subtitle: _('Language of rsx: menus, settings, lock screen and the little runner'),
+            model: Gtk.StringList.new([_('Same as the system'), 'Русский', 'English']),
+            selected: Math.max(0, values.indexOf(settings.get_string('language'))),
+        });
+        row.connect('notify::selected', () => {
+            const value = values[row.selected] ?? 'system';
+            if (settings.get_string('language') !== value)
+                settings.set_string('language', value);
+        });
+        group(page, _('Language')).add(row);
     }
 
     // -- Рабочий стол ---------------------------------------------------------
@@ -42,6 +79,8 @@ export default class RsxPreferences extends ExtensionPreferences {
             title: _('Desktop'),
             icon_name: 'user-desktop-symbolic',
         });
+
+        this._languageGroup(page, settings);
 
         const overview = group(page, _('Window overview'), _('What you see when you press Super'));
         overview.add(checkRow(settings, 'window-captions', _('Window captions'),
@@ -75,6 +114,10 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('Windows grow in with a light bounce and shrink away when closed')));
 
         const look = group(page, _('Appearance'));
+        look.add(checkRow(settings, 'dynamic-island', _('Dynamic island'),
+            _('A black pill at the top for music, notifications and volume, instead of banners and the volume popup')));
+        look.add(checkRow(settings, 'shake-cursor', _('Shake to find the cursor'),
+            _('Shake the mouse and the pointer grows big for a moment')));
         look.add(checkRow(settings, 'mac-osd', _('macOS-style volume popup'),
             _('A square with a big icon and a bar of segments for volume and brightness')));
         look.add(checkRow(settings, 'mac-switcher', _('macOS-style Alt+Tab'),
@@ -83,6 +126,16 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('Like on a MacBook display')));
         look.add(checkRow(settings, 'hide-world-clocks', _('No world clocks in the calendar'),
             _('Hide the "Add World Clocks…" button')));
+
+        const runner = group(page, _('Little runner'));
+        runner.add(checkRow(settings, 'runner', _('Little runner'),
+            _('Lives on the desktop: runs, waves, can be dragged, thrown and hit with fast clicks')));
+        runner.add(checkRow(settings, 'runner-speech', _('Talks'),
+            _('Speech bubbles, and reminders to drink water, take a break and go to bed')));
+        runner.add(checkRow(settings, 'runner-pranks', _('Pranks'),
+            _('Sometimes drags a window a little')));
+        runner.add(checkRow(settings, 'runner-sounds', _('Sounds'),
+            _('Voice when hit, dropped or tickled')));
 
         const keyboard = group(page, _('Keyboard'));
         keyboard.add(checkRow(settings, 'latin-shortcuts', _('Shortcuts in any layout'),
@@ -148,6 +201,17 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('Clock at the top, avatar and password field at the bottom, blur while typing the password')));
         lock.add(checkRow(settings, 'english-on-lock', _('English layout'),
             _('Switch to English when locking, back to the previous layout after unlocking')));
+        lock.add(checkRow(settings, 'lock-media', _('Now playing'),
+            _('Big album cover with play controls when music is playing')));
+        lock.add(checkRow(settings, 'lock-greeting', _('Greeting'),
+            _('"Good morning, Name" above the avatar')));
+        const nameRow = new Adw.EntryRow({
+            title: _('Name in the greeting (empty: from the account)'),
+            text: settings.get_string('greeting-name'),
+        });
+        nameRow.connect('changed', () => settings.set_string('greeting-name', nameRow.text.trim()));
+        settings.bind('lock-greeting', nameRow, 'sensitive', Gio.SettingsBindFlags.GET);
+        lock.add(nameRow);
         lock.add(checkRow(settings, 'lock-smoke', _('Smoke under the mouse'),
             _('Colourful smoke follows the pointer on the lock and login screens')));
 

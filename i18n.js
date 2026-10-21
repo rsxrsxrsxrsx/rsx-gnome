@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Translations: rsx follows the system language. Russian systems get
-// Russian, everything else gets English (the source strings).
+// Translations: the language is picked in rsx's settings ("language": system,
+// ru or en). With "system", Russian systems get Russian and everything else
+// gets English (the source strings). Call setLanguage() when it changes.
 //
 // rsx's own strings live in the RU table below. The bundled lock screen
 // module ships its own .mo catalogs, which we read directly (so it works
@@ -13,8 +14,22 @@ import Gettext from 'gettext';
 const LOCK_DOMAIN = 'wack-lockscreen-clock@rinzler69-wastaken.github.com';
 
 // System languages in priority order, e.g. ['ru_RU.UTF-8', 'ru_RU', 'ru', 'C'].
-const LANGUAGES = GLib.get_language_names().filter(l => l !== 'C' && l !== 'POSIX');
-export const isRussian = (LANGUAGES[0] ?? 'en').startsWith('ru');
+const SYSTEM = GLib.get_language_names().filter(l => l !== 'C' && l !== 'POSIX');
+
+let choice = 'system';
+
+// 'system', 'ru' or 'en'.
+export function setLanguage(language) {
+    choice = ['ru', 'en'].includes(language) ? language : 'system';
+}
+
+function languages() {
+    return choice === 'system' ? SYSTEM : [choice];
+}
+
+export function isRussian() {
+    return (languages()[0] ?? 'en').startsWith('ru');
+}
 
 const RU = {
     // Prefs: pages and groups
@@ -65,6 +80,55 @@ const RU = {
     'No world clocks in the calendar': 'Без мировых часов в календаре',
     'Hide the "Add World Clocks…" button': 'Скрыть кнопку «Add World Clocks…»',
 
+    'Dynamic island': 'Динамический остров',
+    'A black pill at the top for music, notifications and volume, instead of banners and the volume popup':
+        'Чёрная пилюля сверху для музыки, уведомлений и громкости вместо баннеров и индикатора громкости',
+    'Little runner': 'Бегущий человечек',
+    'Language': 'Язык',
+    'Language of rsx: menus, settings, lock screen and the little runner': 'Язык rsx: меню, настройки, экран блокировки и человечек',
+    'Same as the system': 'Как в системе',
+    'Talks': 'Разговаривает',
+    'Speech bubbles, and reminders to drink water, take a break and go to bed': 'Фразы в облачке и напоминания попить воды, размяться и лечь спать',
+    'Pranks': 'Проказы',
+    'Sometimes drags a window a little': 'Иногда немного утаскивает окно',
+    'Sounds': 'Звуки',
+    'Voice when hit, dropped or tickled': 'Голос, когда его бьют, роняют или щекочут',
+    'Ouch!': 'Ай!',
+    'Hey!': 'Эй!',
+    'What was that for?!': 'За что?!',
+    'That hurts!': 'Больно же!',
+    'Put me down!': 'Поставь меня!',
+    'Whoa!': 'Ого!',
+    'Heeey!': 'Эээй!',
+    'Ow…': 'Ой…',
+    'My back…': 'Моя спина…',
+    'Hi!': 'Привет!',
+    'What are you up to?': 'Чем занимаешься?',
+    'I\'m watching you 👀': 'Я слежу за тобой 👀',
+    'Nice wallpaper': 'Классные обои',
+    'Don\'t mind me': 'Я тут просто бегаю',
+    'Phew, it\'s hot in here 🥵': 'Фух, жарко тут 🥵',
+    'So tired… charge me 🔋': 'Устал… заряди меня 🔋',
+    'Haha, that tickles!': 'Хаха, щекотно!',
+    'Stop it, haha!': 'Перестань, хаха!',
+    'I\'m not talking to you 😤': 'Не разговариваю с тобой 😤',
+    'Okay, friends again ❤️': 'Ладно, мир ❤️',
+    'You\'ve got a message!': 'Тебе сообщение!',
+    'Huh? I wasn\'t sleeping!': 'А? Я не спал!',
+    'I\'m up, I\'m up!': 'Встаю, встаю!',
+    'Hehe 😈': 'Хе-хе 😈',
+    'Time to drink some water 💧': 'Пора попить воды 💧',
+    'You\'ve been sitting for 2 hours. Stretch a bit!': 'Ты сидишь уже 2 часа. Разомнись!',
+    'It\'s %s already, go to sleep 😴': 'Уже %s, иди спать 😴',
+    'Lives on the desktop: runs, waves, can be dragged, thrown and hit with fast clicks': 'Живёт на рабочем столе: бегает, машет рукой, его можно таскать, бросать и бить быстрыми кликами',
+    'Shake to find the cursor': 'Найти курсор встряхиванием',
+    'Shake the mouse and the pointer grows big for a moment': 'Потряси мышкой, и курсор на секунду станет большим',
+    'Now playing': 'Сейчас играет',
+    'Big album cover with play controls when music is playing': 'Большая обложка и кнопки управления, когда играет музыка',
+    'Greeting': 'Приветствие',
+    '"Good morning, Name" above the avatar': '«Доброе утро, Имя» над аватаром',
+    'Name in the greeting (empty: from the account)': 'Имя в приветствии (пусто — из учётной записи)',
+
     // Prefs: keyboard
     'Keyboard': 'Клавиатура',
     'Shortcuts in any layout': 'Сочетания в любой раскладке',
@@ -102,6 +166,12 @@ const RU = {
     'Look cache cleared': 'Кэш оформления очищен',
     "Couldn't clear the cache:": 'Не удалось очистить кэш:',
 
+    // Lock screen greeting
+    'Good morning': 'Доброе утро',
+    'Good afternoon': 'Добрый день',
+    'Good evening': 'Добрый вечер',
+    'Good night': 'Доброй ночи',
+
     // Clipboard popup
     'Search the clipboard': 'Поиск в буфере обмена',
     '↑↓ select   ↵ paste   Del remove   Esc close': '↑↓ выбрать   ↵ вставить   Del удалить   Esc закрыть',
@@ -119,7 +189,7 @@ const RU = {
 
 // rsx's own strings.
 export function _(str) {
-    return isRussian ? (RU[str] ?? str) : str;
+    return isRussian() ? (RU[str] ?? str) : str;
 }
 
 // Same, with a single %d / %s placeholder.
@@ -167,24 +237,39 @@ const LOCK_HIDDEN = new Set([
     'Requires WACK Shell to be enabled.',
 ]);
 
-// Translator for the bundled lock screen module, in the system language.
-export function lockTranslator(extensionPath) {
-    let map = new Map();
-    for (const lang of LANGUAGES) {
+// The first catalog found for the current languages (cached per file).
+const catalogs = new Map();
+function catalog(pathFor) {
+    for (const lang of languages()) {
         const code = lang.split('.')[0].split('@')[0];
-        const path = `${extensionPath}/wack/locale/${code}/LC_MESSAGES/${LOCK_DOMAIN}.mo`;
-        if (GLib.file_test(path, GLib.FileTest.EXISTS)) {
-            map = loadMo(path);
-            break;
-        }
         if (code.startsWith('en'))
-            break; // English is the source language
+            return null; // English is the source language
+        for (const path of pathFor(code)) {
+            if (!catalogs.has(path))
+                catalogs.set(path, GLib.file_test(path, GLib.FileTest.EXISTS) ? loadMo(path) : null);
+            if (catalogs.get(path))
+                return catalogs.get(path);
+        }
     }
-    return str => (LOCK_HIDDEN.has(str) ? '' : map.get(str) ?? str);
+    return null;
 }
 
-// GNOME Shell's own strings (e.g. "Click or press a key to unlock").
+// Translator for the bundled lock screen module, in rsx's language.
+export function lockTranslator(extensionPath) {
+    const pathFor = code => [`${extensionPath}/wack/locale/${code}/LC_MESSAGES/${LOCK_DOMAIN}.mo`];
+    return str => (LOCK_HIDDEN.has(str) ? '' : catalog(pathFor)?.get(str) ?? str);
+}
+
+// GNOME Shell's own strings (e.g. "Click or press a key to unlock"), in
+// rsx's language: the system's own catalog, or the installed one for the
+// picked language.
 export function shellTranslator() {
     const domain = Gettext.domain('gnome-shell');
-    return str => domain.gettext(str);
+    const pathFor = code => ['/usr/share/locale', '/usr/share/locale-langpack']
+        .map(dir => `${dir}/${code}/LC_MESSAGES/gnome-shell.mo`);
+    return str => {
+        if (choice === 'system')
+            return domain.gettext(str);
+        return catalog(pathFor)?.get(str) ?? str;
+    };
 }

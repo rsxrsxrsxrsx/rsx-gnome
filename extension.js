@@ -26,7 +26,12 @@ import {ScreenCorners} from './corners.js';
 import {MacSwitcher} from './switcher.js';
 import {CenterWindows, SpringWindows} from './windows.js';
 import {MacOsd} from './osd.js';
+import {DynamicIsland} from './island.js';
+import {LockMedia} from './lockmedia.js';
+import {ShakeCursor} from './cursor.js';
+import {Runner} from './runner.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
+import {setLanguage} from './i18n.js';
 
 function scaleFactor() {
     return St.ThemeContext.get_for_stage(global.stage).scale_factor;
@@ -639,9 +644,13 @@ const FEATURES = {
     'center-windows': CenterWindows,
     'spring-windows': SpringWindows,
     'mac-osd': MacOsd,
+    'dynamic-island': DynamicIsland,
+    'shake-cursor': ShakeCursor,
+    'runner': Runner,
     'cupertino-lock': CupertinoLock,
     'english-on-lock': EnglishOnLock,
     'lock-smoke': LockSmoke,
+    'lock-media': LockMedia,
     'cupertino-login': CupertinoLogin,
     'clipboard-history': ClipboardHistory,
     'latin-shortcuts': LatinShortcuts,
@@ -654,7 +663,13 @@ export default class RsxExtension extends Extension {
     enable() {
         this._active = new Map();
         this._settings = this.getSettings();
-        this._settings.connectObject('changed', (_s, key) => this._sync(key), this);
+        setLanguage(this._settings.get_string('language'));
+        this._settings.connectObject('changed', (_s, key) => {
+            if (key === 'language')
+                this._changeLanguage();
+            else
+                this._sync(key);
+        }, this);
         Object.keys(FEATURES).forEach(key => this._sync(key));
     }
 
@@ -675,6 +690,15 @@ export default class RsxExtension extends Extension {
             current.disable();
             this._active.delete(key);
         }
+    }
+
+    // Restart every feature so its text is built again in the new language.
+    _changeLanguage() {
+        setLanguage(this._settings.get_string('language'));
+        const keys = [...this._active.keys()];
+        [...this._active.values()].reverse().forEach(f => f.disable());
+        this._active.clear();
+        keys.forEach(key => this._sync(key));
     }
 
     disable() {

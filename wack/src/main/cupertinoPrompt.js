@@ -1,10 +1,12 @@
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 import * as UserWidget from 'resource:///org/gnome/shell/ui/userWidget.js';
 import { getPromptBlendOverlay, getUserLabelStyle, getHintTextStyle } from './colorUtils.js';
+import { greetingText } from '../../../greeting.js';
 
 export const WackCupertinoRestPrompt = GObject.registerClass(
     class WackCupertinoRestPrompt extends St.BoxLayout {
@@ -25,6 +27,22 @@ export const WackCupertinoRestPrompt = GObject.registerClass(
             this._lastVisualState = null;
             this._lastClockAlpha = null;
 
+            // rsx: "Good morning, Name" above the avatar.
+            this._greeting = new St.Label({
+                style_class: 'rsx-greeting',
+                x_align: Clutter.ActorAlign.CENTER,
+            });
+            this.add_child(this._greeting);
+            const settings = this._extension?.getSettings?.();
+            if (settings) {
+                settings.bind('lock-greeting', this._greeting, 'visible',
+                    Gio.SettingsBindFlags.GET);
+            }
+            this.connectObject('notify::mapped', () => {
+                if (this.mapped)
+                    this._updateGreeting();
+            }, this);
+
             this._userWell = new St.Bin({
                 x_expand: true,
                 x_align: Clutter.ActorAlign.CENTER,
@@ -32,6 +50,12 @@ export const WackCupertinoRestPrompt = GObject.registerClass(
                 reactive: false,
             });
             this.add_child(this._userWell);
+
+            // rsx: the greeting must not push the avatar down. The password
+            // field is laid out on its own, right where the avatar's name
+            // was, so move the whole prompt up by the greeting's room.
+            this._userWell.connectObject('notify::allocation', () => this._syncGreetingOffset(), this);
+            this._greeting.connectObject('notify::visible', () => this._syncGreetingOffset(), this);
 
             // Inline hint box
             this._hintBox = new St.BoxLayout({
@@ -134,9 +158,21 @@ export const WackCupertinoRestPrompt = GObject.registerClass(
             }
 
             this._userWell.set_child(userWidget);
+            this._updateGreeting();
             this._applyUserLabelStyle();
             this._applyHintLabelStyle();
             this.updateAvatarVibrancy();
+        }
+
+        _updateGreeting() {
+            const name = this._extension?.getSettings?.()?.get_string('greeting-name') ?? '';
+            this._greeting?.set_text(greetingText(this._user, name));
+        }
+
+        _syncGreetingOffset() {
+            const offset = this._greeting?.visible ? this._userWell.y - this._greeting.y : 0;
+            if (this.translation_y !== -offset)
+                this.translation_y = -offset;
         }
 
         _applyUserLabelStyle() {
@@ -144,7 +180,9 @@ export const WackCupertinoRestPrompt = GObject.registerClass(
             const label = userWidget?._label;
             if (!label) return;
             if (this._lastVisualState || this._lastClockAlpha != null) {
-                label.set_style(getUserLabelStyle(this._lastVisualState ?? this._lastClockAlpha));
+                const style = getUserLabelStyle(this._lastVisualState ?? this._lastClockAlpha);
+                label.set_style(style);
+                this._greeting?.set_style(style);
             }
         }
 

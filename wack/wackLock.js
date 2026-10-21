@@ -59,7 +59,7 @@ export class WackLock {
         this.metadata = rsxExtension.metadata;
         this.path = rsxExtension.path;
         this.uuid = rsxExtension.uuid;
-        // rsx: translations in the system language (see ../i18n.js).
+        // rsx: translations in rsx's language (see ../i18n.js).
         this._translate = lockTranslator(rsxExtension.path);
     }
 

@@ -32,6 +32,46 @@
       <summary>Spring animation when windows open and close</summary>
     </key>
 
+    <key name="dynamic-island" type="b">
+      <default>true</default>
+      <summary>Dynamic island for music, notifications and volume</summary>
+    </key>
+
+    <key name="shake-cursor" type="b">
+      <default>true</default>
+      <summary>Shake the mouse to make the pointer big for a moment</summary>
+    </key>
+
+    <key name="language" type="s">
+      <choices>
+        <choice value="system"/>
+        <choice value="ru"/>
+        <choice value="en"/>
+      </choices>
+      <default>'system'</default>
+      <summary>Language of rsx: system, ru or en</summary>
+    </key>
+
+    <key name="runner" type="b">
+      <default>true</default>
+      <summary>A little person running along the bottom of the screen</summary>
+    </key>
+
+    <key name="runner-speech" type="b">
+      <default>true</default>
+      <summary>The runner talks and reminds about water, breaks and sleep</summary>
+    </key>
+
+    <key name="runner-pranks" type="b">
+      <default>true</default>
+      <summary>The runner sometimes drags a window a little</summary>
+    </key>
+
+    <key name="runner-sounds" type="b">
+      <default>true</default>
+      <summary>The runner makes sounds</summary>
+    </key>
+
     <key name="mac-osd" type="b">
       <default>true</default>
       <summary>macOS-style volume and brightness popup</summary>
@@ -65,6 +105,21 @@
     <key name="latin-shortcuts" type="b">
       <default>true</default>
       <summary>Ctrl shortcuts work in any keyboard layout</summary>
+    </key>
+
+    <key name="lock-greeting" type="b">
+      <default>true</default>
+      <summary>"Good morning, Name" above the avatar on the lock screen</summary>
+    </key>
+
+    <key name="greeting-name" type="s">
+      <default>''</default>
+      <summary>Name in the lock screen greeting (empty: the account's full name)</summary>
+    </key>
+
+    <key name="lock-media" type="b">
+      <default>true</default>
+      <summary>Now playing with a big cover on the lock screen</summary>
     </key>
 
     <key name="lock-smoke" type="b">
