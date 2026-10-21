@@ -115,7 +115,7 @@ export default class RsxPreferences extends ExtensionPreferences {
 
         const look = group(page, _('Appearance'));
         look.add(checkRow(settings, 'dynamic-island', _('Dynamic island'),
-            _('A black pill at the top for music, notifications and volume, instead of banners and the volume popup')));
+            _('A black pill at the top for music and notifications, instead of banners')));
         look.add(checkRow(settings, 'shake-cursor', _('Shake to find the cursor'),
             _('Shake the mouse and the pointer grows big for a moment')));
         look.add(checkRow(settings, 'mac-osd', _('macOS-style volume popup'),

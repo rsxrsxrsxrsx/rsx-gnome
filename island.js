@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Dynamic island: a black pill at the top center of the screen that pops out
-// for a moment when the track changes, a notification arrives or the volume
-// or brightness changes. It replaces GNOME's banners and volume popup while
-// it's on (critical notifications still use the normal banner).
+// for a moment when the track changes or a notification arrives. It replaces
+// GNOME's banners while it's on (critical notifications still use the normal banner).
 
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -18,7 +17,6 @@ const SHOW_TIME = 380;
 const HIDE_TIME = 260;
 const MEDIA_MS = 3500;
 const NOTIFICATION_MS = 4000;
-const LEVEL_MS = 1500;
 const TOP = 4; // px below the top of the screen
 
 function label(text, styleClass) {
@@ -72,7 +70,6 @@ export class DynamicIsland {
 
         this._watchMedia();
         this._watchNotifications();
-        this._watchLevels();
     }
 
     // -- sources -------------------------------------------------------------
@@ -167,67 +164,10 @@ export class DynamicIsland {
         });
     }
 
-    _watchLevels() {
-        const osd = Main.osdWindowManager;
-        this._osd = osd;
-        const origShow = osd._showOsdWindow;
-        this._origShowOsd = origShow;
-        const self = this;
-        osd._showOsdWindow = function (monitorIndex, icon, label, level, maxLevel) {
-            if (level == null)
-                return origShow.call(this, monitorIndex, icon, label, level, maxLevel);
-            self._pushLevel(icon, level, maxLevel);
-            return undefined;
-        };
-    }
-
-    _pushLevel(icon, level, maxLevel) {
-        const max = maxLevel > 0 ? maxLevel : 1;
-        const fraction = Math.max(0, Math.min(level / max, 1));
-        // Volume steps come fast: update in place instead of queueing.
-        if (this._current?.kind === 'level' && this._levelFill) {
-            this._levelIcon.gicon = icon;
-            this._setFill(fraction);
-            this._scheduleHide(LEVEL_MS);
-            return;
-        }
-        this._push({
-            kind: 'level',
-            timeout: LEVEL_MS,
-            urgent: true,
-            build: () => {
-                const box = new St.BoxLayout({style_class: 'rsx-island-row rsx-island-level'});
-                this._levelIcon = new St.Icon({gicon: icon, icon_size: 18, y_align: Clutter.ActorAlign.CENTER});
-                box.add_child(this._levelIcon);
-                const track = new St.Widget({
-                    style_class: 'rsx-island-track',
-                    y_align: Clutter.ActorAlign.CENTER,
-                    layout_manager: new Clutter.FixedLayout(),
-                });
-                this._levelFill = new St.Widget({style_class: 'rsx-island-fill'});
-                track.add_child(this._levelFill);
-                track.connect('notify::width', () => this._setFill(this._levelFraction));
-                box.add_child(track);
-                this._levelTrack = track;
-                this._setFill(fraction);
-                return box;
-            },
-        });
-    }
-
-    _setFill(fraction) {
-        this._levelFraction = fraction;
-        // Not on screen yet: the track sizes the fill once it's allocated.
-        if (!this._levelFill || !this._levelTrack?.get_stage())
-            return;
-        const w = this._levelTrack.width;
-        this._levelFill.set_size(Math.round(w * fraction), this._levelTrack.height);
-    }
-
     // -- showing -------------------------------------------------------------
 
     _push(item) {
-        if (item.urgent || !this._current) {
+        if (!this._current) {
             this._show(item);
             return;
         }
@@ -238,7 +178,6 @@ export class DynamicIsland {
 
     _show(item) {
         this._current = item;
-        this._levelFill = this._levelTrack = this._levelIcon = null;
         const island = this._island;
         const wasVisible = island.visible;
         island.destroy_all_children();
@@ -320,9 +259,7 @@ export class DynamicIsland {
         // Remove the per-instance overrides: back to GNOME's own methods.
         if (this._tray)
             delete this._tray._showNotification;
-        if (this._osd)
-            delete this._osd._showOsdWindow;
-        this._tray = this._osd = this._origShowNotification = this._origShowOsd = null;
+        this._tray = this._origShowNotification = null;
 
         this._mpris?.disconnectObject(this);
         for (const player of this._seen?.keys() ?? [])

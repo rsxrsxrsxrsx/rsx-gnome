@@ -81,8 +81,8 @@ const RU = {
     'Hide the "Add World Clocks…" button': 'Скрыть кнопку «Add World Clocks…»',
 
     'Dynamic island': 'Динамический остров',
-    'A black pill at the top for music, notifications and volume, instead of banners and the volume popup':
-        'Чёрная пилюля сверху для музыки, уведомлений и громкости вместо баннеров и индикатора громкости',
+    'A black pill at the top for music and notifications, instead of banners':
+        'Чёрная пилюля сверху для музыки и уведомлений вместо баннеров',
     'Little runner': 'Бегущий человечек',
     'Language': 'Язык',
     'Language of rsx: menus, settings, lock screen and the little runner': 'Язык rsx: меню, настройки, экран блокировки и человечек',

@@ -125,7 +125,8 @@ export class Runner {
         this._angVel = 0;
         this._bounce = 0; // little hops, px up
         this._perch = null; // the window he stands on
-        this._onTop = false; // above all windows (held, thrown)
+        this._onTop = false; // above all windows (held or thrown by the user)
+        this._layerWin = null; // window he stays above while jumping off or onto it
         this._hits = [];
         this._abuse = [];
         this._lastClick = 0;
@@ -315,27 +316,33 @@ export class Runner {
     // -- layers and visibility ---------------------------------------------------
 
     // Normally right above the wallpaper (under all windows); on top of the
-    // window he stands on; above everything while held or thrown.
+    // window he stands on or jumps off/onto; above everything while held or
+    // thrown. His speech bubbles and emoji go right above him, so windows
+    // cover them too.
     _restack() {
         const group = global.window_group;
         if (!this._actor || this._actor.get_parent() !== group)
             return;
         if (this._onTop) {
             group.set_child_above_sibling(this._actor, null);
-            return;
-        }
-        let below = this._perch?.get_compositor_private() ?? null;
-        if (!below) {
-            below = Main.layoutManager._backgroundGroup;
-            for (const actor of global.get_window_actors()) {
-                if (actor.meta_window?.get_window_type() === Meta.WindowType.DESKTOP)
-                    below = actor;
+        } else {
+            let below = (this._perch ?? this._layerWin)?.get_compositor_private() ?? null;
+            if (!below) {
+                below = Main.layoutManager._backgroundGroup;
+                for (const actor of global.get_window_actors()) {
+                    if (actor.meta_window?.get_window_type() === Meta.WindowType.DESKTOP)
+                        below = actor;
+                }
             }
+            if (below?.get_parent() === group)
+                group.set_child_above_sibling(this._actor, below);
+            else
+                group.set_child_below_sibling(this._actor, null);
         }
-        if (below?.get_parent() === group)
-            group.set_child_above_sibling(this._actor, below);
-        else
-            group.set_child_below_sibling(this._actor, null);
+        for (const label of this._labels ?? []) {
+            if (label.get_parent() === group)
+                group.set_child_above_sibling(label, this._actor);
+        }
     }
 
     _setOnTop(onTop) {
@@ -393,7 +400,7 @@ export class Runner {
             return true;
         if (this._onTop)
             return false;
-        const above = this._perch?.get_compositor_private() ?? null;
+        const above = (this._perch ?? this._layerWin)?.get_compositor_private() ?? null;
         return this._covered(this._x, this._y - this._actor.height * 0.7, above);
     }
 
@@ -422,10 +429,10 @@ export class Runner {
     _fallOff() {
         if (!this._perch)
             return;
+        this._layerWin = null;
         this._perchOn(null);
         if (['held', 'fall', 'hang'].includes(this._state))
             return;
-        this._setOnTop(true);
         this._vx = 0;
         this._vy = 0;
         this._jumping = false;
@@ -531,6 +538,7 @@ export class Runner {
         if (!this._actor)
             return;
         const work = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryIndex);
+        this._layerWin = null;
         this._perchOn(null);
         this._setOnTop(false);
         this._x = work.x - 60 * this._scale;
@@ -583,10 +591,11 @@ export class Runner {
     // -- jumps -------------------------------------------------------------------
 
     _jump(vx = 0, vy = -JUMP_SPEED * this._scale) {
-        // Leaving a window: stay in front of it while in the air.
+        // Leaving a window: stay in front of it (but behind the windows
+        // above it) while in the air.
         if (this._perch) {
+            this._layerWin = this._perch;
             this._perchOn(null);
-            this._setOnTop(true);
         }
         this._vx = vx;
         this._vy = vy;
@@ -603,13 +612,15 @@ export class Runner {
         });
         if (!wins.length)
             return false;
-        const r = pick(wins).meta_window.get_frame_rect();
+        const target = pick(wins);
+        const r = target.meta_window.get_frame_rect();
         const s = this._scale;
         const g = GRAVITY * s;
         const tx = Math.clamp(this._x, r.x + 40 * s, r.x + r.width - 40 * s);
         const vy = -Math.sqrt(2 * g * (this._y - r.y + 30 * s));
         const flight = -vy / g + Math.sqrt(2 * 30 * s / g);
-        this._setOnTop(true);
+        this._layerWin = target.meta_window;
+        this._restack();
         this._jump((tx - this._x) / flight, vy);
         return true;
     }
@@ -694,6 +705,8 @@ export class Runner {
         this._wake(false);
         this._clearLabel('stars');
         this._prank = null;
+        this._hopping = false;
+        this._layerWin = null;
         this._perchOn(null);
         this._setOnTop(true);
         this._set('held');
@@ -885,6 +898,15 @@ export class Runner {
         const [sheet, frame, mirror = false, target = 0] =
             this[`_tick_${this._state}`](ctx) ?? ['front', STAND];
 
+        if (this._hop) {
+            const {vx, vy} = this._hop;
+            this._hop = null;
+            if (!this._perch && ['run', 'chase', 'greet', 'notify', 'goto'].includes(this._state)) {
+                this._jump(vx, vy);
+                this._hopping = true;
+            }
+        }
+
         this._swing(target, dt);
         this._show(sheet, frame, mirror);
         this._place();
@@ -894,7 +916,73 @@ export class Runner {
     _move(ctx, speedMul, fpsMul = 1) {
         this._x += this._facing * SPEED * speedMul * this._scale * ctx.dt;
         this._y = ctx.surface.y;
+        if (!this._perch)
+            this._hopOver(ctx);
         return Math.floor(this._time * RUN_FPS * fpsMul) % FRAMES;
+    }
+
+    // The dock is solid: the stretch of ground under it, widened by half his
+    // width on each side.
+    _docks(ctx) {
+        const cache = this._dockCache;
+        if (cache && ctx.t - cache.t < 0.5)
+            return cache.list;
+        const half = this._cellWidth('run') / 2;
+        const list = this._bottomChrome(ctx.work.y + ctx.work.height)
+            .map(r => ({x1: r.x1 - half, x2: r.x2 + half, top: r.y1}));
+        this._dockCache = {t: ctx.t, list};
+        return list;
+    }
+
+    // Running into the dock: jump over it (or turn around if there's no
+    // room on the other side).
+    _hopOver(ctx) {
+        const s = this._scale;
+        for (const d of this._docks(ctx)) {
+            if (this._x > d.x1 && this._x < d.x2) {
+                // Somehow under it: step out.
+                this._x = this._x - d.x1 < d.x2 - this._x ? d.x1 : d.x2;
+                continue;
+            }
+            const ahead = this._facing > 0 ? d.x1 - this._x : this._x - d.x2;
+            if (ahead < 0 || ahead > 60 * s || this._hop)
+                continue;
+            const land = this._facing > 0 ? d.x2 + 15 * s : d.x1 - 15 * s;
+            if (land < ctx.surface.x1 || land > ctx.surface.x2) {
+                this._facing = -this._facing;
+                continue;
+            }
+            const g = GRAVITY * s;
+            const rise = ctx.surface.y - d.top + 30 * s;
+            const vy = -Math.max(JUMP_SPEED * s, Math.sqrt(2 * g * (rise + 60 * s)));
+            // Be past the dock by the time he comes back down to its top.
+            const down = (-vy + Math.sqrt(vy * vy - 2 * g * rise)) / g;
+            this._hop = {vx: (land - this._x) / down, vy};
+        }
+    }
+
+    // Falling onto the dock: bounce off its top to the nearer side; hitting
+    // its side: bounce back.
+    _hitDock(ctx, prevX, prevY) {
+        const s = this._scale;
+        const g = GRAVITY * s;
+        for (const d of this._docks(ctx)) {
+            if (this._x <= d.x1 || this._x >= d.x2 || this._y <= d.top)
+                continue;
+            if (prevY <= d.top) {
+                this._y = d.top;
+                const side = this._x - d.x1 < d.x2 - this._x ? -1 : 1;
+                const land = side > 0 ? d.x2 + 15 * s : d.x1 - 15 * s;
+                this._vy = -Math.max(this._vy * 0.4, 600 * s);
+                // Clear the edge before coming back down to the top.
+                this._vx = (land - this._x) / (-2 * this._vy / g);
+                this._jumping = true;
+            } else if (!this._hopping) {
+                this._x = prevX <= d.x1 ? d.x1 : prevX >= d.x2 ? d.x2
+                    : this._x - d.x1 < d.x2 - this._x ? d.x1 : d.x2;
+                this._vx = -this._vx * 0.5;
+            }
+        }
     }
 
     // Keep him on the surface; returns the edge he reached (-1, 1) or 0.
@@ -951,7 +1039,14 @@ export class Runner {
     }
 
     _tick_chase(ctx) {
-        const dx = this._ptr.x - this._x;
+        let tx = this._ptr.x;
+        if (!this._perch) {
+            for (const d of this._docks(ctx)) {
+                if (tx > d.x1 && tx < d.x2)
+                    tx = this._x <= d.x1 ? d.x1 - 80 * this._scale : d.x2 + 80 * this._scale;
+            }
+        }
+        const dx = tx - this._x;
         this._facing = dx >= 0 ? 1 : -1;
         const frame = this._move(ctx, 1.5, 1.3);
         this._edge(ctx);
@@ -1004,7 +1099,7 @@ export class Runner {
         let target = monitor.x + monitor.width / 2;
         // Stand next to the dock, not behind it.
         if (!this._perch) {
-            const half = this._cellWidth('front');
+            const half = this._cellWidth('run') / 2 + 90 * this._scale;
             for (const r of this._bottomChrome(ctx.surface.y)) {
                 if (target > r.x1 - half && target < r.x2 + half)
                     target = this._x < (r.x1 + r.x2) / 2 ? r.x1 - half : r.x2 + half;
@@ -1229,10 +1324,12 @@ export class Runner {
     _tick_fall(ctx) {
         const {dt, work, panelBottom} = ctx;
         const s = this._scale;
+        const prevX = this._x;
         const prevY = this._y;
         this._vy += GRAVITY * s * dt;
         this._x += this._vx * dt;
         this._y += this._vy * dt;
+        this._hitDock(ctx, prevX, prevY);
         const target = Math.clamp(this._vx / s * 0.02, -30, 30);
         const half = this._actor.width / 2;
         if (this._x < work.x + half || this._x > work.x + work.width - half) {
@@ -1273,6 +1370,7 @@ export class Runner {
     }
 
     _land() {
+        this._hopping = false;
         const speed = this._vy / this._scale;
         this._setPivot(0.5, 1);
         if (speed > HARD_LANDING) {
@@ -1295,7 +1393,9 @@ export class Runner {
                 this._stand(random(0.8, 1.4));
         }
         // Back under the windows (or right above the one he landed on).
-        this._setOnTop(false);
+        this._layerWin = null;
+        this._onTop = false;
+        this._restack();
         this._squash();
     }
 
@@ -1392,13 +1492,18 @@ export class Runner {
         this._actor.set_position(Math.round(this._x - w / 2), Math.round(this._y - h));
         this._actor.translation_y = -Math.round(this._bounce);
 
-        if (!this._labels.size)
+        if (!this._labels.size && !this._pendingSay)
             return;
+        const hidden = this._isHidden();
+        if (this._pendingSay && !hidden) {
+            const text = this._pendingSay;
+            this._pendingSay = null;
+            this._say(text, true);
+        }
         // Stars and the speech bubble follow his head, tilt included.
         const rad = this._angle * Math.PI / 180;
         const hx = this._x + Math.sin(rad) * h * 0.85;
         const hy = this._y - Math.cos(rad) * h * 0.85 - this._bounce;
-        const hidden = this._isHidden();
         const monitor = Main.layoutManager.primaryMonitor;
         for (const label of this._labels) {
             if (label._follow === 'stars') {
@@ -1410,24 +1515,25 @@ export class Runner {
                     monitor.x + 8, monitor.x + monitor.width - label.width - 8);
                 label.set_position(Math.round(x),
                     Math.round(Math.max(top - label.height - 6, monitor.y)));
-                label.visible = !hidden || label._important;
+                label.visible = !hidden;
             }
         }
     }
 
-    // A speech bubble over his head. Important ones (reminders) show even
-    // when he's behind a window.
+    // A speech bubble over his head. Important ones (reminders) wait until
+    // he's out from behind the windows.
     _say(text, important = false) {
         if (!this._labels || !this._settings.get_boolean('runner-speech'))
             return;
-        if (!important && this._isHidden())
+        if (this._isHidden()) {
+            if (important)
+                this._pendingSay = text;
             return;
+        }
         this._clearLabel('bubble');
         const label = new St.Label({text, style_class: 'rsx-runner-bubble', reactive: false});
         label._follow = 'bubble';
-        label._important = important;
-        Main.layoutManager.uiGroup.add_child(label);
-        this._labels.add(label);
+        this._addLabel(label);
         label.opacity = 0;
         label.ease({opacity: 255, duration: 150});
         const seconds = important ? 7 : Math.max(2.2, text.length * 0.08);
@@ -1444,8 +1550,7 @@ export class Runner {
             this._clearLabel(follow);
         const label = new St.Label({text, style_class: 'rsx-runner-label', reactive: false});
         label._follow = follow;
-        Main.layoutManager.uiGroup.add_child(label);
-        this._labels.add(label);
+        this._addLabel(label);
         if (follow)
             return;
         const [, w] = label.get_preferred_width(-1);
@@ -1471,8 +1576,7 @@ export class Runner {
     // An emoji that drifts up and fades (💤).
     _floatLabel(text, x, y) {
         const label = new St.Label({text, style_class: 'rsx-runner-label rsx-runner-small', reactive: false});
-        Main.layoutManager.uiGroup.add_child(label);
-        this._labels.add(label);
+        this._addLabel(label);
         label.set_position(Math.round(x), Math.round(y));
         label.ease({
             translation_x: 20 * this._scale,
@@ -1482,6 +1586,12 @@ export class Runner {
             mode: Clutter.AnimationMode.EASE_IN_QUAD,
             onStopped: () => this._removeLabel(label),
         });
+    }
+
+    _addLabel(label) {
+        global.window_group.add_child(label);
+        this._labels.add(label);
+        this._restack();
     }
 
     _clearLabel(follow) {
