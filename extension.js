@@ -13,6 +13,7 @@ import St from 'gi://St';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Background from 'resource:///org/gnome/shell/ui/background.js';
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import {WindowPreview} from 'resource:///org/gnome/shell/ui/windowPreview.js';
 import {WorkspaceLayout, WorkspaceBackground} from 'resource:///org/gnome/shell/ui/workspace.js';
 import {WorkspacesView, ExtraWorkspaceView} from 'resource:///org/gnome/shell/ui/workspacesView.js';
@@ -221,29 +222,223 @@ function addCaption(preview) {
 // to the monitor height instead. Width still follows the window's shape.
 // ---------------------------------------------------------------------------
 
+// The overview's layout strategy class isn't exported: run GNOME's layout
+// once on an empty stand-in workspace to get hold of it.
+let strategyProto = null;
+function layoutStrategyProto() {
+    if (!strategyProto) {
+        const proto = WorkspaceLayout.prototype;
+        // At login the extension starts before monitors are known, so lend
+        // GNOME a stand-in monitor for this one call.
+        const {monitors} = Main.layoutManager;
+        monitors.push({x: 0, y: 0, width: 100, height: 100});
+        const fake = {
+            _spacing: 0,
+            _sortedWindows: [],
+            _monitorIndex: monitors.length - 1,
+            _adjustSpacingAndPadding: proto._adjustSpacingAndPadding,
+            _isBetterScaleAndSpace: proto._isBetterScaleAndSpace,
+        };
+        try {
+            proto._createBestLayout.call(fake, {x: 0, y: 0, width: 100, height: 100});
+        } finally {
+            monitors.pop();
+        }
+        strategyProto = Object.getPrototypeOf(fake._layoutStrategy);
+    }
+    return strategyProto;
+}
+
 class EqualWindowSizes {
     enable() {
-        const self = this;
-        const p = this._patcher = new Patcher();
-
-        // The layout strategy class isn't exported, so patch it the first
-        // time we see an instance of it, then redo that layout.
-        p.replace(WorkspaceLayout.prototype, '_createBestLayout', orig => function (area) {
-            let layout = orig.call(this, area);
-            if (!self._strategyPatched && this._layoutStrategy) {
-                self._strategyPatched = true;
-                p.replace(Object.getPrototypeOf(this._layoutStrategy), '_computeWindowScale',
-                    () => function (window) {
-                        return this._monitor.height / Math.max(window.boundingBox.height, 1);
-                    });
-                layout = orig.call(this, area);
-            }
-            return layout;
-        });
+        this._patcher = new Patcher();
+        this._patcher.replace(layoutStrategyProto(), '_computeWindowScale',
+            () => function (window) {
+                return this._monitor.height / Math.max(window.boundingBox.height, 1);
+            });
     }
 
     disable() {
         this._patcher.restore();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Window order: drag a preview onto another one in the overview to swap
+// places; the others make room while you drag. GNOME arranges windows by
+// where they are on the desktop; we keep the order the user set instead
+// (new windows go to the end, in GNOME's order).
+// ---------------------------------------------------------------------------
+
+class WindowOrder {
+    enable() {
+        const self = this;
+        this._order = []; // stable sequences of windows, in the user's order
+        const p = this._patcher = new Patcher();
+        const strategy = layoutStrategyProto();
+
+        // GNOME's computeLayout, with our order instead of the vertical
+        // position for filling the rows.
+        p.replace(strategy, 'computeLayout', () => function (windows, {numRows}) {
+            const sorted = self._sort(windows);
+            const scaled = sorted.map(w => {
+                const s = this._computeWindowScale(w);
+                return {w, width: w.boundingBox.width * s, height: w.boundingBox.height * s};
+            });
+            const totalWidth = scaled.reduce((sum, x) => sum + x.width, 0);
+            const idealRowWidth = totalWidth / numRows;
+
+            const rows = [];
+            let i = 0;
+            for (let r = 0; r < numRows; r++) {
+                const row = this._newRow();
+                rows.push(row);
+                for (; i < scaled.length; i++) {
+                    const {w, width, height} = scaled[i];
+                    if (!this._keepSameRow(row, w, width, idealRowWidth) && r !== numRows - 1)
+                        break;
+                    row.windows.push(w);
+                    row.fullWidth += width;
+                    row.fullHeight = Math.max(row.fullHeight, height);
+                }
+            }
+
+            let gridHeight = 0;
+            let maxRow;
+            for (const row of rows) {
+                if (!maxRow || row.fullWidth > maxRow.fullWidth)
+                    maxRow = row;
+                gridHeight += row.fullHeight;
+            }
+            return {
+                numRows,
+                rows,
+                maxColumns: maxRow.windows.length,
+                gridWidth: maxRow.fullWidth,
+                gridHeight,
+            };
+        });
+        // Rows keep our order too.
+        p.replace(strategy, '_sortRow', () => function (row) {
+            row.windows = self._sort(row.windows);
+        });
+
+        // The dragged preview keeps its gap in the grid, but isn't put back
+        // into it until the drag is over.
+        p.replace(WorkspaceLayout.prototype, '_getWindowSlots', orig => function (box) {
+            const slots = orig.call(this, box);
+            for (const slot of slots) {
+                if (slot[4].inDrag)
+                    slot[4]._rsxSlot = slot;
+            }
+            return slots.filter(slot => !slot[4].inDrag);
+        });
+
+        this._monitor = {dragMotion: event => this._dragMotion(event)};
+        DND.addDragMonitor(this._monitor);
+        Main.overview.connectObject(
+            'window-drag-cancelled', (_o, win) => this._aimSnapBack(win?._delegate),
+            'window-drag-end', (_o, win) => this._land(win?._delegate),
+            this);
+    }
+
+    // Dropped back on its own workspace: GNOME would fly the window to its
+    // old place and then jump to the new one. Fly it to the new place.
+    _aimSnapBack(preview) {
+        const slot = preview?._rsxSlot;
+        const layout = preview?._workspace?._container?.layout_manager;
+        const draggable = preview?._draggable;
+        const width = preview?.allocation.get_width();
+        if (!slot || !(layout instanceof WorkspaceLayout) || !draggable || !width)
+            return;
+        const k = layout._container.allocation.get_width() /
+            (layout._windowSlotsBox?.get_width() || 1);
+        const [x, y, w, h] = slot.map(v => v * k);
+        draggable._dragOrigX = x;
+        draggable._dragOrigY = y;
+        draggable._dragOrigScale = w / width;
+        preview._rsxLanding = new Clutter.ActorBox({x1: x, y1: y, x2: x + w, y2: y + h});
+    }
+
+    // Back in the grid: settle at the new place at full size, then lay out.
+    _land(preview) {
+        const box = preview?._rsxLanding;
+        if (preview)
+            preview._rsxSlot = preview._rsxLanding = null;
+        this._lastTarget = null;
+        if (box) {
+            preview.set_scale(1, 1);
+            preview.allocate(box);
+        }
+        this._relayout(preview);
+    }
+
+    _seq(preview) {
+        return preview.metaWindow.get_stable_sequence();
+    }
+
+    // Previews in the user's order; unknown ones are added to the end, top
+    // to bottom and left to right as they are on the desktop.
+    _sort(windows) {
+        const alive = new Set(global.get_window_actors().map(a => a.meta_window.get_stable_sequence()));
+        this._order = this._order.filter(seq => alive.has(seq));
+        const known = new Set(this._order);
+        const fresh = windows.filter(w => !known.has(this._seq(w)))
+            .sort((a, b) => a.windowCenter.y - b.windowCenter.y || a.windowCenter.x - b.windowCenter.x);
+        this._order.push(...fresh.map(w => this._seq(w)));
+        const rank = new Map(this._order.map((seq, i) => [seq, i]));
+        return windows.slice().sort((a, b) => rank.get(this._seq(a)) - rank.get(this._seq(b)));
+    }
+
+    _dragMotion(event) {
+        const source = event.source;
+        if (!(source instanceof WindowPreview) || !source.inDrag)
+            return DND.DragMotionResult.CONTINUE;
+        let target = event.targetActor;
+        while (target && !(target instanceof WindowPreview))
+            target = target.get_parent();
+        // Skip previews that are still sliding into place.
+        if (target !== this._lastTarget)
+            this._lastTarget = null;
+        // Swap once per window the pointer enters: after a swap the window
+        // under the pointer changes, and swapping again would bounce back.
+        if (!target || target === source || target === this._lastTarget ||
+            target._workspace !== source._workspace || target.get_transition('allocation'))
+            return DND.DragMotionResult.CONTINUE;
+        this._lastTarget = target;
+
+        const from = this._order.indexOf(this._seq(source));
+        const to = this._order.indexOf(this._seq(target));
+        if (from < 0 || to < 0)
+            return DND.DragMotionResult.CONTINUE;
+        this._order.splice(from, 1);
+        this._order.splice(to, 0, this._seq(source));
+        this._relayout(source);
+        return DND.DragMotionResult.CONTINUE;
+    }
+
+    _relayout(preview) {
+        const layout = preview?._workspace?._container?.layout_manager;
+        if (!(layout instanceof WorkspaceLayout))
+            return;
+        // GNOME retargets windows that are still moving by swapping the end
+        // point mid-way, which makes them jump. Stop them where they are
+        // instead, so the new move starts smoothly from there.
+        for (const [child, info] of layout._windows ?? []) {
+            if (!info.currentTransition)
+                continue;
+            info.currentTransition = null;
+            child.remove_transition('allocation');
+        }
+        layout._needsLayout = true;
+        layout.layout_changed();
+    }
+
+    disable() {
+        DND.removeDragMonitor(this._monitor);
+        Main.overview.disconnectObject(this);
+        this._patcher.restore();
+        this._order = [];
     }
 }
 
@@ -636,6 +831,7 @@ class HideWorldClocks {
 const FEATURES = {
     'window-captions': WindowCaptions,
     'equal-window-sizes': EqualWindowSizes,
+    'window-order': WindowOrder,
     'spring-animation': SpringOverview,
     'blur-panel': BlurredPanel,
     'screen-corners': ScreenCorners,

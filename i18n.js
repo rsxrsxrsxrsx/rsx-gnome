@@ -51,6 +51,8 @@ const RU = {
     'Always show the icon and title under every window': 'Всегда показывать иконку и название под каждым окном',
     'Same size windows': 'Окна одного размера',
     'All previews have the same height, rows line up evenly': 'Все миниатюры одной высоты, ряды выстраиваются ровно',
+    'Arrange windows yourself': 'Свой порядок окон',
+    'Drag a window onto another one to swap places': 'Перетащи окно на другое, чтобы поменять их местами',
     'Spring animation': 'Пружинная анимация',
     'Smooth opening and closing with a light bounce': 'Плавное открытие и закрытие с лёгким отскоком',
 

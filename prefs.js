@@ -87,6 +87,8 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('Always show the icon and title under every window')));
         overview.add(checkRow(settings, 'equal-window-sizes', _('Same size windows'),
             _('All previews have the same height, rows line up evenly')));
+        overview.add(checkRow(settings, 'window-order', _('Arrange windows yourself'),
+            _('Drag a window onto another one to swap places')));
         overview.add(checkRow(settings, 'spring-animation', _('Spring animation'),
             _('Smooth opening and closing with a light bounce')));
 

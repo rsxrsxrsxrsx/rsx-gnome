@@ -5,6 +5,7 @@
 
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PointerWatcher from 'resource:///org/gnome/shell/ui/pointerWatcher.js';
@@ -116,6 +117,7 @@ export class ShakeCursor {
         this._actor.set_pivot_point(3 / 32, 2 / 32);
         this._actor.set_translation(-full * 3 / 32, -full * 2 / 32, 0);
         this._actor.visible = false;
+        Shell.util_set_hidden_from_pick(this._actor, true);
         Main.uiGroup.add_child(this._actor);
     }
 

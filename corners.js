@@ -5,6 +5,7 @@
 
 import Cairo from 'cairo';
 import Clutter from 'gi://Clutter';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -34,6 +35,9 @@ function makeCorner(size, [right, bottom]) {
 export class ScreenCorners {
     enable() {
         this._group = new Clutter.Actor({reactive: false});
+        // The group spans the whole screen: keep it out of picking, or drag
+        // and drop (and anything else that looks under the pointer) hits it.
+        Shell.util_set_hidden_from_pick(this._group, true);
         Main.layoutManager.uiGroup.add_child(this._group);
         Main.layoutManager.uiGroup.connectObject('child-added', () => this._raise(), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._build(), this);

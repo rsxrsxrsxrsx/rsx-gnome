@@ -9,6 +9,10 @@
       <default>true</default>
       <summary>Same height for all window previews</summary>
     </key>
+    <key name="window-order" type="b">
+      <default>true</default>
+      <summary>Drag window previews in the overview to reorder them</summary>
+    </key>
     <key name="spring-animation" type="b">
       <default>true</default>
       <summary>Spring animation when opening and closing the overview</summary>
