@@ -15,7 +15,7 @@
     </key>
     <key name="spring-animation" type="b">
       <default>true</default>
-      <summary>Spring animation when opening and closing the overview</summary>
+      <summary>Smooth animation when opening and closing the overview</summary>
     </key>
     <key name="blur-panel" type="b">
       <default>true</default>
@@ -33,7 +33,7 @@
 
     <key name="spring-windows" type="b">
       <default>true</default>
-      <summary>Spring animation when windows open and close</summary>
+      <summary>Smooth animation when windows open and close</summary>
     </key>
 
     <key name="dynamic-island" type="b">
@@ -84,6 +84,21 @@
     <key name="mac-switcher" type="b">
       <default>true</default>
       <summary>macOS-style Alt+Tab: app icons in a row on frosted glass</summary>
+    </key>
+
+    <key name="short-date" type="b">
+      <default>true</default>
+      <summary>Short top bar date like "mon, 21.11, 14:11"</summary>
+    </key>
+
+    <key name="clock-right" type="b">
+      <default>true</default>
+      <summary>Clock and calendar at the right end of the top bar</summary>
+    </key>
+
+    <key name="tidy-quick-settings" type="b">
+      <default>true</default>
+      <summary>Hide power mode, night light and dark style from quick settings and the top bar</summary>
     </key>
 
     <key name="hide-world-clocks" type="b">

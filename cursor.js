@@ -140,7 +140,7 @@ export class ShakeCursor {
             scale_x: 1,
             scale_y: 1,
             duration: GROW_TIME,
-            mode: Clutter.AnimationMode.EASE_OUT_BACK,
+            mode: Clutter.AnimationMode.EASE_OUT_EXPO,
         });
 
         if (this._holdId)

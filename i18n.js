@@ -53,8 +53,9 @@ const RU = {
     'All previews have the same height, rows line up evenly': 'Все миниатюры одной высоты, ряды выстраиваются ровно',
     'Arrange windows yourself': 'Свой порядок окон',
     'Drag a window onto another one to swap places': 'Перетащи окно на другое, чтобы поменять их местами',
-    'Spring animation': 'Пружинная анимация',
-    'Smooth opening and closing with a light bounce': 'Плавное открытие и закрытие с лёгким отскоком',
+    'Smooth animation': 'Плавная анимация',
+    'Windows glide into place and settle softly, no bounce':
+        'Окна мягко разъезжаются по местам и плавно тормозят, без отскока',
 
     // Prefs: top bar
     'Blurred top bar': 'Размытие панели',
@@ -65,9 +66,9 @@ const RU = {
     'Windows': 'Окна',
     'Open in the center': 'Открывать по центру',
     'New windows open in the middle of the screen with the mouse': 'Новые окна открываются посередине экрана, где сейчас мышка',
-    'Spring open and close': 'Пружинное открытие и закрытие',
-    'Windows grow in with a light bounce and shrink away when closed':
-        'Окна появляются с лёгким отскоком и плавно уменьшаются при закрытии',
+    'Smooth open and close': 'Плавное открытие и закрытие',
+    'Windows rise in softly when opened and fade away when closed':
+        'Окна мягко всплывают при открытии и тают при закрытии',
 
     // Prefs: appearance
     'macOS-style volume popup': 'Индикатор громкости как в macOS',
@@ -81,10 +82,32 @@ const RU = {
     'Like on a MacBook display': 'Как у экрана MacBook',
     'No world clocks in the calendar': 'Без мировых часов в календаре',
     'Hide the "Add World Clocks…" button': 'Скрыть кнопку «Add World Clocks…»',
+    'Fewer quick settings': 'Меньше быстрых настроек',
+    'Clock on the right': 'Часы справа',
+    'Short date': 'Короткая дата',
+    'Like "mon, 21.11, 14:11"': 'Вида «пн, 21.11, 14:11»',
+    'Clock and calendar at the right end of the top bar, like on a Mac':
+        'Часы и календарь в правом конце верхней панели, как на Mac',
+    'No power mode, night light or dark style tiles, and no power mode icon':
+        'Без плиток «Режим питания», «Ночной свет», «Тёмный стиль» и значка режима питания',
 
     'Dynamic island': 'Динамический остров',
-    'A black pill at the top for music and notifications, instead of banners':
-        'Чёрная пилюля сверху для музыки и уведомлений вместо баннеров',
+    'A black pill at the top for music, timers, notifications and system events':
+        'Чёрная пилюля сверху: музыка, таймер, уведомления и системные события',
+    // Dynamic island
+    'Timer': 'Таймер',
+    'Stopwatch': 'Секундомер',
+    '%d min': '%d мин',
+    'Caps Lock is on': 'Caps Lock включён',
+    'Caps Lock is off': 'Caps Lock выключен',
+    'Sound output': 'Вывод звука',
+    'Screen recording started': 'Идёт запись экрана',
+    'Screen recording saved': 'Запись экрана сохранена',
+    'Your screen is being shared': 'Экран сейчас показывается',
+    'Screen sharing stopped': 'Показ экрана закончен',
+    'Charging': 'Заряжается',
+    'Time is up': 'Время вышло',
+    'Click to close': 'Нажми, чтобы закрыть',
     'Little runner': 'Бегущий человечек',
     'Language': 'Язык',
     'Language of rsx: menus, settings, lock screen and the little runner': 'Язык rsx: меню, настройки, экран блокировки и человечек',

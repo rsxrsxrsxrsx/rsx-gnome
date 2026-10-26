@@ -89,10 +89,14 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('All previews have the same height, rows line up evenly')));
         overview.add(checkRow(settings, 'window-order', _('Arrange windows yourself'),
             _('Drag a window onto another one to swap places')));
-        overview.add(checkRow(settings, 'spring-animation', _('Spring animation'),
-            _('Smooth opening and closing with a light bounce')));
+        overview.add(checkRow(settings, 'spring-animation', _('Smooth animation'),
+            _('Windows glide into place and settle softly, no bounce')));
 
         const panel = group(page, _('Top bar'));
+        panel.add(checkRow(settings, 'short-date', _('Short date'),
+            _('Like "mon, 21.11, 14:11"')));
+        panel.add(checkRow(settings, 'clock-right', _('Clock on the right'),
+            _('Clock and calendar at the right end of the top bar, like on a Mac')));
         panel.add(checkRow(settings, 'blur-panel', _('Blurred top bar'),
             _('Translucent top bar with the wallpaper blurred under it')));
         const scale = new Gtk.Scale({
@@ -112,12 +116,12 @@ export default class RsxPreferences extends ExtensionPreferences {
         const windows = group(page, _('Windows'));
         windows.add(checkRow(settings, 'center-windows', _('Open in the center'),
             _('New windows open in the middle of the screen with the mouse')));
-        windows.add(checkRow(settings, 'spring-windows', _('Spring open and close'),
-            _('Windows grow in with a light bounce and shrink away when closed')));
+        windows.add(checkRow(settings, 'spring-windows', _('Smooth open and close'),
+            _('Windows rise in softly when opened and fade away when closed')));
 
         const look = group(page, _('Appearance'));
         look.add(checkRow(settings, 'dynamic-island', _('Dynamic island'),
-            _('A black pill at the top for music and notifications, instead of banners')));
+            _('A black pill at the top for music, timers, notifications and system events')));
         look.add(checkRow(settings, 'shake-cursor', _('Shake to find the cursor'),
             _('Shake the mouse and the pointer grows big for a moment')));
         look.add(checkRow(settings, 'mac-osd', _('macOS-style volume popup'),
@@ -128,6 +132,8 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('Like on a MacBook display')));
         look.add(checkRow(settings, 'hide-world-clocks', _('No world clocks in the calendar'),
             _('Hide the "Add World Clocks…" button')));
+        look.add(checkRow(settings, 'tidy-quick-settings', _('Fewer quick settings'),
+            _('No power mode, night light or dark style tiles, and no power mode icon')));
 
         const runner = group(page, _('Little runner'));
         runner.add(checkRow(settings, 'runner', _('Little runner'),

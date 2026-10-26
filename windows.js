@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // New windows: open centered on the screen with the mouse, and open/close
-// with a soft spring instead of GNOME's quick zoom.
+// with a soft, modern motion instead of GNOME's quick zoom.
 
 import Clutter from 'gi://Clutter';
-import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
+import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {curveTransition} from './motion.js';
 
 // -- Centered new windows -----------------------------------------------------
 
@@ -40,55 +41,17 @@ export class CenterWindows {
     }
 }
 
-// -- Spring open/close --------------------------------------------------------
+// -- Smooth open/close --------------------------------------------------------
+//
+// Opening: the window fades in while it grows a little and rises into place,
+// on a quick-start, soft-landing curve. Closing: a short fade and shrink.
 
-const OPEN_TIME = 520;
-const OPEN_FADE_TIME = 180;
-const OPEN_SCALE = 0.86;
-const CLOSE_TIME = 200;
-const CLOSE_SCALE = 0.9;
-
-// Damped spring from 0 to 1 (a little overshoot, then settles).
-const DAMPING = 0.72;
-const FREQUENCY = 2.6; // oscillations per second
-
-function spring(seconds) {
-    const w0 = 2 * Math.PI * FREQUENCY;
-    const wd = w0 * Math.sqrt(1 - DAMPING * DAMPING);
-    const decay = Math.exp(-DAMPING * w0 * seconds);
-    return 1 - decay * (Math.cos(wd * seconds) + DAMPING * w0 / wd * Math.sin(wd * seconds));
-}
-
-const KEYFRAMES = 30;
-
-function doubleValue(x) {
-    const v = new GObject.Value();
-    v.init(GObject.TYPE_DOUBLE);
-    v.set_double(x);
-    return v;
-}
-
-// A transition that follows the spring curve, sampled into keyframes
-// (a custom progress function from JS doesn't reach Clutter).
-function springTransition(property, from, to, duration) {
-    const t = new Clutter.KeyframeTransition({
-        property_name: property,
-        duration,
-        progress_mode: Clutter.AnimationMode.LINEAR,
-    });
-    t.set_from(doubleValue(from));
-    t.set_to(doubleValue(to));
-    const keys = [];
-    const values = [];
-    for (let i = 1; i < KEYFRAMES; i++) {
-        const k = i / KEYFRAMES;
-        keys.push(k);
-        values.push(doubleValue(from + (to - from) * spring(k * duration / 1000)));
-    }
-    t.set_key_frames(keys);
-    t.set_values(values);
-    return t;
-}
+const OPEN_TIME = 420;
+const OPEN_FADE_TIME = 200;
+const OPEN_SCALE = 0.93;
+const OPEN_RISE = 18; // px the window rises while opening
+const CLOSE_TIME = 180;
+const CLOSE_SCALE = 0.95;
 
 // Which of GNOME's window animations this ease() call is, if any.
 function windowAnimation(actor, params) {
@@ -103,7 +66,7 @@ function windowAnimation(actor, params) {
     return null;
 }
 
-export class SpringWindows {
+export class SmoothWindows {
     enable() {
         const proto = Clutter.Actor.prototype;
         const origEase = proto.ease;
@@ -113,39 +76,44 @@ export class SpringWindows {
             switch (windowAnimation(this, params)) {
             case 'open': {
                 const {onStopped, onComplete} = params;
-                this.set_pivot_point(0.5, 0.5);
-                this.set({scale_x: OPEN_SCALE, scale_y: OPEN_SCALE, opacity: 0});
-                origEase.call(this, {
-                    opacity: 255,
-                    duration: OPEN_FADE_TIME,
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                });
                 // Respect "reduce animations" (duration 0 then).
                 this.save_easing_state();
                 this.set_easing_duration(OPEN_TIME);
                 const duration = this.get_easing_duration();
                 this.restore_easing_state();
                 if (duration <= 0) {
-                    this.set({scale_x: 1, scale_y: 1, opacity: 255});
+                    this.set({scale_x: 1, scale_y: 1, translation_y: 0, opacity: 255});
                     onComplete?.();
                     onStopped?.(true);
                     return;
                 }
-                const tx = springTransition('scale-x', OPEN_SCALE, 1, duration);
-                const ty = springTransition('scale-y', OPEN_SCALE, 1, duration);
+
+                const rise = OPEN_RISE * St.ThemeContext.get_for_stage(global.stage).scaleFactor;
+                this.set_pivot_point(0.5, 0.5);
+                this.set({scale_x: OPEN_SCALE, scale_y: OPEN_SCALE, translation_y: rise, opacity: 0});
+                origEase.call(this, {
+                    opacity: 255,
+                    duration: OPEN_FADE_TIME,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+                const tx = curveTransition('scale-x', OPEN_SCALE, 1, duration);
+                const ty = curveTransition('scale-y', OPEN_SCALE, 1, duration);
+                const tr = curveTransition('translation-y', rise, 0, duration);
                 let done = false;
                 tx.connect('stopped', (_t, finished) => {
                     if (done)
                         return;
                     done = true;
-                    this.remove_transition('rsx-spring-y');
-                    this.set({scale_x: 1, scale_y: 1});
+                    this.remove_transition('rsx-open-y');
+                    this.remove_transition('rsx-open-rise');
+                    this.set({scale_x: 1, scale_y: 1, translation_y: 0});
                     if (finished)
                         onComplete?.();
                     onStopped?.(finished);
                 });
-                this.add_transition('rsx-spring-y', ty);
-                this.add_transition('rsx-spring-x', tx);
+                this.add_transition('rsx-open-y', ty);
+                this.add_transition('rsx-open-rise', tr);
+                this.add_transition('rsx-open-x', tx);
                 return;
             }
             case 'close':
@@ -154,7 +122,7 @@ export class SpringWindows {
                     scale_x: CLOSE_SCALE,
                     scale_y: CLOSE_SCALE,
                     duration: CLOSE_TIME,
-                    mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 });
                 return;
             default:

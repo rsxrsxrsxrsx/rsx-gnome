@@ -15,7 +15,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Background from 'resource:///org/gnome/shell/ui/background.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import {WindowPreview} from 'resource:///org/gnome/shell/ui/windowPreview.js';
-import {WorkspaceLayout, WorkspaceBackground} from 'resource:///org/gnome/shell/ui/workspace.js';
+import {WorkspaceLayout} from 'resource:///org/gnome/shell/ui/workspace.js';
 import {WorkspacesView, ExtraWorkspaceView} from 'resource:///org/gnome/shell/ui/workspacesView.js';
 import {ControlsManager, ControlsState} from 'resource:///org/gnome/shell/ui/overviewControls.js';
 import {WackLock} from './wack/wackLock.js';
@@ -25,14 +25,15 @@ import {LatinShortcuts} from './layoutShortcuts.js';
 import {LockSmoke} from './smoke.js';
 import {ScreenCorners} from './corners.js';
 import {MacSwitcher} from './switcher.js';
-import {CenterWindows, SpringWindows} from './windows.js';
+import {CenterWindows, SmoothWindows} from './windows.js';
 import {MacOsd} from './osd.js';
 import {DynamicIsland} from './island.js';
+import {emphasized} from './motion.js';
 import {LockMedia} from './lockmedia.js';
 import {ShakeCursor} from './cursor.js';
 import {Runner} from './runner.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
-import {setLanguage} from './i18n.js';
+import {isRussian, setLanguage} from './i18n.js';
 
 function scaleFactor() {
     return St.ThemeContext.get_for_stage(global.stage).scale_factor;
@@ -443,36 +444,24 @@ class WindowOrder {
 }
 
 // ---------------------------------------------------------------------------
-// Spring animation: windows overshoot a little and settle, both when the
-// overview opens and when it closes. Also slower, smoother timing.
+// Smooth overview: windows glide to their places on a quick-start,
+// soft-landing curve (no bounce), both when the overview opens and closes.
 //
 // Window positions are a linear mix between "desktop" (0) and "overview
 // slot" (1), driven by each workspace's state value. GNOME eases that value
-// by time; we turn it back into time and run it through a damped spring.
+// by time; we turn it back into time and run it through our curve.
 // ---------------------------------------------------------------------------
 
-const OPEN_TIME = 550; // ms, GNOME default is 250
-const CLOSE_TIME = 450; // ms, GNOME default is 250
-const SPRING_DAMPING = 0.72; // lower = more bounce (0.72 ≈ 3.5% overshoot)
-const SPRING_FREQUENCY = 7.0;
+const OPEN_TIME = 450; // ms, GNOME default is 250
+const CLOSE_TIME = 380; // ms, GNOME default is 250
 
-// Damped spring from 0 to 1 over t in [0, 1], starting at rest.
-function spring(t) {
-    const z = SPRING_DAMPING;
-    const w = SPRING_FREQUENCY;
-    const wd = w * Math.sqrt(1 - z * z);
-    const x = s => 1 - Math.exp(-z * w * s) *
-        (Math.cos(wd * s) + (z * w / wd) * Math.sin(wd * s));
-    return x(t) - (x(1) - 1) * t; // land exactly on 1 at the end
-}
-
-class SpringOverview {
+class SmoothOverview {
     enable() {
         const p = this._patcher = new Patcher();
         // null, or how to turn the eased value back into time
         let mode = null;
 
-        // Open: GNOME's code, longer duration. Spring only for the
+        // Open: GNOME's code, longer duration. Our curve only for the
         // window picker (not when opening straight into the app grid).
         p.replace(ControlsManager.prototype, 'animateToOverview', () => function (state, callback) {
             this._ignoreShowAppsButtonToggle = true;
@@ -491,7 +480,7 @@ class SpringOverview {
             this._ignoreShowAppsButtonToggle = false;
         });
 
-        // Close: same, spring only when closing from the window picker.
+        // Close: same, our curve only when closing from the window picker.
         p.replace(ControlsManager.prototype, 'animateFromOverview', () => function (callback) {
             this._ignoreShowAppsButtonToggle = true;
             if (this._stateAdjustment.value === ControlsState.WINDOW_PICKER)
@@ -513,15 +502,12 @@ class SpringOverview {
             const v = adj.value;
             if (!mode || v <= 0 || v >= 1)
                 return;
-            // Allow going past 0 and 1.
-            adj.lower = -1;
-            adj.upper = 2;
             if (mode === 'open') {
                 const t = Math.asin(v) * 2 / Math.PI; // undo EASE_OUT_SINE
-                adj.value = spring(t);
+                adj.value = emphasized(t);
             } else {
                 const t = 1 - Math.cbrt(v); // undo EASE_OUT_CUBIC towards 0
-                adj.value = 1 - spring(t);
+                adj.value = 1 - emphasized(t);
             }
         };
 
@@ -532,33 +518,6 @@ class SpringOverview {
         p.replace(ExtraWorkspaceView.prototype, '_updateWorkspaceMode', orig => function () {
             orig.call(this);
             apply(this._workspace);
-        });
-
-        // Minimized windows fade by the state value: keep opacity in range,
-        // and hide them below 0 (their size would turn negative).
-        p.replace(WorkspaceLayout.prototype, '_syncOpacity', () => function (actor, metaWindow) {
-            if (metaWindow.showing_on_its_workspace())
-                return;
-            const v = this._stateAdjustment.value;
-            if (v < 0 && actor.visible) {
-                actor._rsxHidden = true;
-                actor.hide();
-            } else if (v >= 0 && actor._rsxHidden) {
-                delete actor._rsxHidden;
-                actor.show();
-            }
-            actor.opacity = Math.round(Math.clamp(v, 0, 1) * 255);
-        });
-
-        // Corner radius can't go negative.
-        p.replace(WorkspaceBackground.prototype, '_updateBorderRadius', orig => function () {
-            const adj = this._stateAdjustment;
-            if (adj.value >= 0 && adj.value <= 1) {
-                orig.call(this);
-                return;
-            }
-            const radius = scaleFactor() * 30 * Math.clamp(adj.value, 0, 1);
-            this._bgManager.backgroundActor.content.rounded_clip_radius = radius;
         });
     }
 
@@ -827,18 +786,156 @@ class HideWorldClocks {
 }
 
 // ---------------------------------------------------------------------------
+// Fewer quick settings: no power mode (tile and top bar icon), night light
+// or dark style. GNOME shows them again when their state changes, so hide
+// them each time they appear.
+// ---------------------------------------------------------------------------
+
+class TidyQuickSettings {
+    enable() {
+        this._hidden = new Map(); // actor -> was it visible
+        const qs = this._qs = Main.panel.statusArea.quickSettings;
+        // At login GNOME is still building quick settings: wait for them.
+        if (qs && !this._ready())
+            qs._indicators.connectObject('child-added', () => this._ready() && this._hide(), this);
+        else
+            this._hide();
+    }
+
+    _ready() {
+        const qs = this._qs;
+        return !!(qs?._powerProfiles && qs._nightLight && qs._darkMode);
+    }
+
+    _hide() {
+        const qs = this._qs;
+        qs?._indicators.disconnectObject(this);
+        for (const indicator of [qs?._powerProfiles, qs?._nightLight, qs?._darkMode]) {
+            if (!indicator || this._hidden.has(indicator))
+                continue;
+            for (const actor of [indicator, ...indicator.quickSettingsItems ?? []]) {
+                this._hidden.set(actor, actor.visible);
+                actor.connectObject('notify::visible', () => {
+                    if (actor.visible) {
+                        this._hidden.set(actor, true);
+                        actor.hide();
+                    }
+                }, this);
+                actor.hide();
+            }
+        }
+    }
+
+    disable() {
+        this._qs?._indicators.disconnectObject(this);
+        this._qs = null;
+        for (const [actor, wasVisible] of this._hidden ?? []) {
+            actor.disconnectObject(this);
+            actor.visible = wasVisible;
+        }
+        this._hidden = null;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The clock and calendar at the right end of the top bar, like on macOS.
+// GNOME puts the clock back in the middle whenever the session mode
+// changes (lock, unlock), so move it again each time.
+// ---------------------------------------------------------------------------
+
+class ClockRight {
+    enable() {
+        this._move();
+        Main.sessionMode.connectObject('updated', () => this._move(), this);
+    }
+
+    _move() {
+        const clock = Main.panel.statusArea.dateMenu?.container;
+        const right = Main.panel._rightBox;
+        if (!clock || clock.get_parent() === right)
+            return;
+        clock.get_parent()?.remove_child(clock);
+        right.add_child(clock);
+        // The clock keeps room on both sides for the unread dot when it's
+        // centered; at the edge that only looks like a gap.
+        Main.panel.statusArea.dateMenu.add_style_class_name('rsx-clock-right');
+    }
+
+    disable() {
+        Main.sessionMode.disconnectObject(this);
+        const clock = Main.panel.statusArea.dateMenu?.container;
+        if (clock && clock.get_parent() === Main.panel._rightBox) {
+            Main.panel._rightBox.remove_child(clock);
+            Main.panel._centerBox.insert_child_at_index(clock, 0);
+        }
+        Main.panel.statusArea.dateMenu?.remove_style_class_name('rsx-clock-right');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Short top bar date: "пн, 21.11, 14:11". GNOME keeps setting the clock text
+// (every minute, or second); each time we rewrite it in our format. Seconds
+// and the 12/24-hour choice follow GNOME's own settings.
+// ---------------------------------------------------------------------------
+
+const WEEKDAYS_RU = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+const WEEKDAYS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+class ShortDate {
+    enable() {
+        this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        this._label = Main.panel.statusArea.dateMenu?._clockDisplay ?? null;
+        this._label?.connectObject('notify::text', () => this._sync(), this);
+        this._interface.connectObject(
+            'changed::clock-show-seconds', () => this._sync(),
+            'changed::clock-format', () => this._sync(), this);
+        this._sync();
+    }
+
+    _text() {
+        const now = GLib.DateTime.new_now_local();
+        const day = (isRussian() ? WEEKDAYS_RU : WEEKDAYS_EN)[now.get_day_of_week() - 1];
+        const seconds = this._interface.get_boolean('clock-show-seconds') ? ':%S' : '';
+        const time = this._interface.get_string('clock-format') === '12h'
+            ? now.format(`%l:%M${seconds} %p`).trim()
+            : now.format(`%H:%M${seconds}`);
+        return `${day}, ${now.format('%d.%m')}, ${time}`;
+    }
+
+    _sync() {
+        const text = this._text();
+        if (this._label && this._label.text !== text)
+            this._label.text = text;
+    }
+
+    disable() {
+        this._interface?.disconnectObject(this);
+        this._interface = null;
+        this._label?.disconnectObject(this);
+        // Back to GNOME's text.
+        const clock = Main.panel.statusArea.dateMenu?._clock;
+        if (this._label && clock)
+            this._label.text = clock.clock;
+        this._label = null;
+    }
+}
+
+// ---------------------------------------------------------------------------
 
 const FEATURES = {
+    'short-date': ShortDate,
+    'clock-right': ClockRight,
+    'tidy-quick-settings': TidyQuickSettings,
     'window-captions': WindowCaptions,
     'equal-window-sizes': EqualWindowSizes,
     'window-order': WindowOrder,
-    'spring-animation': SpringOverview,
+    'spring-animation': SmoothOverview,
     'blur-panel': BlurredPanel,
     'screen-corners': ScreenCorners,
     'hide-world-clocks': HideWorldClocks,
     'mac-switcher': MacSwitcher,
     'center-windows': CenterWindows,
-    'spring-windows': SpringWindows,
+    'spring-windows': SmoothWindows,
     'mac-osd': MacOsd,
     'dynamic-island': DynamicIsland,
     'shake-cursor': ShakeCursor,

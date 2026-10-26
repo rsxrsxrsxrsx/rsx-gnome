@@ -627,37 +627,186 @@
 /* Dynamic island */
 .rsx-island {
   background-color: black;
-  border-radius: 999px;
-  padding: 8px 18px 8px 8px;
-  min-width: 180px;
-  max-width: 460px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  border-radius: 26px;
 }
-.rsx-island-row {
-  spacing: 12px;
+.rsx-island-compact {
+  padding: 0 11px 0 4px;
+  spacing: 9px;
+}
+.rsx-island-compact-title {
+  color: white;
+  font-weight: 600;
+  font-size: 9.5pt;
+}
+.rsx-island-clock {
+  color: white;
+  font-weight: 700;
+  font-size: 10.5pt;
+  font-feature-settings: "tnum";
+}
+.rsx-island-small-icon {
+  icon-size: 15px;
+  padding-left: 3px;
+}
+.rsx-island-compact-timer {
+  font-weight: 700;
+  font-size: 10.5pt;
+  font-feature-settings: "tnum";
+}
+.rsx-island-accent {
+  color: #ff9f0a;
 }
 .rsx-island-cover {
-  border-radius: 8px;
+  border-radius: 6px;
 }
-.rsx-island-icon {
-  padding: 2px 0 2px 6px;
+
+/* expanded, picker */
+.rsx-island-expanded {
+  padding: 16px 18px 12px;
+  spacing: 12px;
+}
+.rsx-island-head {
+  spacing: 12px;
 }
 .rsx-island-text {
-  max-width: 340px;
+  spacing: 2px;
 }
 .rsx-island-title {
   color: white;
-  font-weight: 600;
-  font-size: 10.5pt;
+  font-weight: 700;
+  font-size: 11pt;
 }
 .rsx-island-subtitle {
   color: rgba(255, 255, 255, 0.6);
   font-size: 9.5pt;
 }
-.rsx-island-badge {
-  icon-size: 14px;
-  color: #6ee07a;
-  padding-left: 6px;
+.rsx-island-eq {
+  spacing: 2px;
+  padding: 0 2px;
+}
+.rsx-island-eq-bar {
+  background-color: #6ee07a;
+  border-radius: 2px;
+}
+.rsx-island-progress {
+  spacing: 10px;
+}
+.rsx-island-time {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 8.5pt;
+  font-feature-settings: "tnum";
+  min-width: 34px;
+}
+.rsx-island-time-end {
+  text-align: right;
+}
+.rsx-island-seek {
+  height: 16px;
+}
+.rsx-island-seek:hover .rsx-island-track {
+  height: 8px;
+  border-radius: 4px;
+}
+.rsx-island-seek:hover .rsx-island-fill {
+  border-radius: 4px;
+}
+.rsx-island-track {
+  height: 5px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.18);
+}
+.rsx-island-fill {
+  height: 5px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.9);
+}
+.rsx-island-controls {
+  spacing: 26px;
+}
+.rsx-island-button {
+  color: white;
+  border-radius: 999px;
+  padding: 7px;
+  transition-duration: 120ms;
+}
+.rsx-island-button StIcon {
+  icon-size: 18px;
+}
+.rsx-island-button:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+.rsx-island-button:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+.rsx-island-button:insensitive {
+  color: rgba(255, 255, 255, 0.3);
+}
+.rsx-island-play StIcon {
+  icon-size: 24px;
+}
+.rsx-island-accent-button {
+  color: #ff9f0a;
+  background-color: rgba(255, 159, 10, 0.18);
+}
+.rsx-island-accent-button:hover {
+  background-color: rgba(255, 159, 10, 0.28);
+}
+.rsx-island-separator {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.rsx-island-timer-row {
+  spacing: 12px;
+}
+.rsx-island-timer-icon {
+  icon-size: 22px;
+  padding: 0 4px;
+}
+.rsx-island-big-timer {
+  font-size: 20pt;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+.rsx-island-chips {
+  spacing: 8px;
+}
+.rsx-island-chip {
+  color: white;
+  font-weight: 600;
+  font-size: 10pt;
+  padding: 9px 0;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition-duration: 120ms;
+}
+.rsx-island-chip:hover {
+  background-color: rgba(255, 159, 10, 0.3);
+}
+
+/* activity */
+.rsx-island-activity {
+  padding: 8px 20px 8px 8px;
+  spacing: 12px;
+  min-width: 200px;
+}
+.rsx-island-activity-icon {
+  icon-size: 22px;
+  color: white;
+  padding: 7px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+.rsx-island-activity-icon.rsx-island-accent {
+  color: #ff9f0a;
+  background-color: rgba(255, 159, 10, 0.2);
+}
+.rsx-island-red .rsx-island-activity-icon {
+  color: #ff453a;
+  background-color: rgba(255, 69, 58, 0.2);
+}
+.rsx-island-green .rsx-island-activity-icon {
+  color: #30d158;
+  background-color: rgba(48, 209, 88, 0.2);
 }
 
 /* Now playing on the lock screen */
@@ -722,4 +871,10 @@
     font-size: 14px;
     font-weight: 600;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* Clock on the right: no spare room around it */
+.rsx-clock-right .clock {
+  padding-left: 0;
+  padding-right: 0;
 }
