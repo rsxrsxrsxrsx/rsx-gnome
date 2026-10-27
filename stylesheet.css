@@ -875,6 +875,6 @@
 
 /* Clock on the right: no spare room around it */
 .rsx-clock-right .clock {
-  padding-left: 0;
-  padding-right: 0;
+  padding-left: 4px;
+  padding-right: 4px;
 }

@@ -172,7 +172,9 @@ export class DynamicIsland {
         const timer = this._timer;
         if (!player && !timer)
             return null;
-        const music = player ? `${player._busName}|${player.trackTitle}|${player.trackCoverUrl}` : '';
+        // Artist and cover often arrive a moment after the title: those
+        // update in place (see _refresh), only a new title rebuilds.
+        const music = player ? `${player._busName}|${player.trackTitle}` : '';
         const timerKind = timer?.kind ?? '';
         if (this._expanded) {
             return {
@@ -195,7 +197,10 @@ export class DynamicIsland {
             return;
         }
         this._viewKey = desired?.key ?? null;
-        this._live = {clocks: [], timers: [], playIcons: [], eqs: [], progress: null, player: null};
+        this._live = {
+            clocks: [], timers: [], playIcons: [], eqs: [], progress: null, player: null,
+            titles: [], artists: [], covers: [],
+        };
         this._morph(desired?.build() ?? null);
         this._refresh();
     }
@@ -214,6 +219,10 @@ export class DynamicIsland {
         live.timerPause?.child.set({
             icon_name: timer?.paused ? 'media-playback-start-symbolic' : 'media-playback-pause-symbolic',
         });
+
+        const player = live.player ?? this._activity?.player;
+        if (player)
+            this._refreshTrack(player);
 
         const playing = live.player?.status === 'Playing';
         live.playIcons.forEach(i => (i.icon_name =
@@ -263,24 +272,32 @@ export class DynamicIsland {
             return;
         }
 
-        // Measure at the final size, then keep that size while the pill
-        // grows or shrinks around it, so the text doesn't reflow.
-        content.set({opacity: 0, x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
-        pill.add_child(content);
-        // (Measured only now: text has no font size until it's on the stage.)
-        const natural = content.get_preferred_width(content._rsxHeight ?? -1)[1];
-        const width = content._rsxWidth ??
-            Math.min(Math.max(natural, content._rsxMinWidth ?? 0), content._rsxMaxWidth ?? Infinity);
-        const height = content._rsxHeight ?? content.get_preferred_height(width)[1];
-        content.set_size(width, height);
-
+        // Show the (still transparent) pill first: icons get their size
+        // only once they're on a visible stage, and we measure next.
         const appearing = !pill.visible || !old;
         if (!pill.visible) {
             const h = this._compactHeight();
             pill.set({visible: true, opacity: 0, width: h * 2, height: h});
             pill.y = (Main.layoutManager.primaryMonitor?.y ?? 0) + Math.round((Main.panel.height - h) / 2);
             this._syncShape();
+            // Check the size again once everything is laid out.
+            let laterId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                laterId = 0;
+                if (this._content === content)
+                    this._fitContent();
+                return GLib.SOURCE_REMOVE;
+            });
+            content.connect('destroy', () => laterId && GLib.source_remove(laterId));
         }
+
+        // Measure at the final size, then keep that size while the pill
+        // grows or shrinks around it, so the text doesn't reflow.
+        content.set({opacity: 0, x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
+        pill.add_child(content);
+        // (Measured only now: text has no font size until it's on the stage.)
+        const [width, height] = this._measure(content);
+        content.set_size(width, height);
+
         pill.get_parent().set_child_above_sibling(pill, null);
         pill.ease({opacity: 255, duration: FADE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
 
@@ -293,6 +310,7 @@ export class DynamicIsland {
             });
         };
         const shrinking = height < pill.height;
+        this._target = {width, height};
         ease('width', width);
         ease('height', height);
 
@@ -302,6 +320,33 @@ export class DynamicIsland {
             duration: FADE_TIME,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
+    }
+
+    _measure(content) {
+        content.set_size(-1, -1);
+        const natural = content.get_preferred_width(content._rsxHeight ?? -1)[1];
+        const width = content._rsxWidth ??
+            Math.min(Math.max(natural, content._rsxMinWidth ?? 0), content._rsxMaxWidth ?? Infinity);
+        const height = content._rsxHeight ?? content.get_preferred_height(width)[1];
+        return [Math.round(width), Math.round(height)];
+    }
+
+    // The current view's text changed size: let the pill follow.
+    _fitContent() {
+        const content = this._content;
+        if (!content)
+            return;
+        const [width, height] = this._measure(content);
+        content.set_size(width, height);
+        for (const [prop, to] of [['width', width], ['height', height]]) {
+            if (this._target?.[prop] === to)
+                continue;
+            this._target = {...this._target, [prop]: to};
+            this._pill.ease_property(prop, to, {
+                duration: SHRINK_TIME,
+                mode: Clutter.AnimationMode.EASE_OUT_EXPO,
+            });
+        }
     }
 
     // Centered. (The corner radius is fixed in CSS; St shrinks it to fit
@@ -344,7 +389,7 @@ export class DynamicIsland {
             this._live.clocks.push(clock);
             box.add_child(clock);
         } else if (player) {
-            box.add_child(label(player.trackTitle, 'rsx-island-compact-title', {x_expand: true}));
+            box.add_child(this._titleLabel(player, 'rsx-island-compact-title', {x_expand: true}));
         }
 
         const tail = timer ? this._timerLabel('rsx-island-compact-timer') : this._eq(player);
@@ -371,10 +416,8 @@ export class DynamicIsland {
             const head = new St.BoxLayout({style_class: 'rsx-island-head'});
             head.add_child(this._cover(player, 52, 12));
             const text = vbox('rsx-island-text', {x_expand: true, y_align: Clutter.ActorAlign.CENTER});
-            text.add_child(label(player.trackTitle, 'rsx-island-title'));
-            const artists = artistsText(player);
-            if (artists)
-                text.add_child(label(artists, 'rsx-island-subtitle'));
+            text.add_child(this._titleLabel(player, 'rsx-island-title'));
+            text.add_child(this._artistLabel(player));
             head.add_child(text);
             head.add_child(this._eq(player));
             box.add_child(head);
@@ -496,7 +539,9 @@ export class DynamicIsland {
         const box = new St.BoxLayout({style_class: `rsx-island-activity ${activity.styleClass ?? ''}`});
         let lead;
         if (activity.player) {
-            lead = coverActor(activity.player.trackCoverUrl, 36, 9, 'rsx-island-cover');
+            const url = activity.player.trackCoverUrl;
+            lead = new St.Bin({child: coverActor(url, 36, 9, 'rsx-island-cover')});
+            this._live.covers.push({holder: lead, size: 36, radius: 9, url});
         } else {
             lead = new St.Icon({
                 gicon: activity.gicon ?? null,
@@ -508,9 +553,14 @@ export class DynamicIsland {
         box.add_child(lead);
 
         const text = vbox('rsx-island-text', {x_expand: true, y_align: Clutter.ActorAlign.CENTER});
-        text.add_child(label(activity.title, 'rsx-island-title'));
-        if (activity.subtitle)
-            text.add_child(label(activity.subtitle, 'rsx-island-subtitle'));
+        if (activity.player) {
+            text.add_child(this._titleLabel(activity.player, 'rsx-island-title'));
+            text.add_child(this._artistLabel(activity.player));
+        } else {
+            text.add_child(label(activity.title, 'rsx-island-title'));
+            if (activity.subtitle)
+                text.add_child(label(activity.subtitle, 'rsx-island-subtitle'));
+        }
         box.add_child(text);
 
         if (activity.player) {
@@ -527,12 +577,57 @@ export class DynamicIsland {
             child: coverActor(player.trackCoverUrl, size, radius, 'rsx-island-cover'),
             y_align: Clutter.ActorAlign.CENTER,
         });
+        this._live.covers.push({holder: button, size, radius, url: player.trackCoverUrl});
         button.connect('clicked', () => {
             this._expanded = false;
             player.raise();
             this._update();
         });
         return button;
+    }
+
+    _titleLabel(player, styleClass, params = {}) {
+        const l = label(player.trackTitle, styleClass, params);
+        this._live.titles.push(l);
+        return l;
+    }
+
+    // Always there (hidden while empty), so a late artist can show up.
+    _artistLabel(player) {
+        const artists = artistsText(player);
+        const l = label(artists, 'rsx-island-subtitle', {visible: !!artists});
+        this._live.artists.push(l);
+        return l;
+    }
+
+    // Track details that came in after the view was built.
+    _refreshTrack(player) {
+        const live = this._live;
+        const title = player.trackTitle ?? '';
+        const artists = artistsText(player);
+        let resized = false;
+        live.titles.forEach(l => {
+            if (l.text !== title) {
+                l.text = title;
+                resized = true;
+            }
+        });
+        live.artists.forEach(l => {
+            if (l.text !== artists) {
+                l.text = artists;
+                l.visible = !!artists;
+                resized = true;
+            }
+        });
+        if (resized)
+            this._fitContent();
+        const url = player.trackCoverUrl;
+        for (const cover of live.covers) {
+            if (cover.url === url)
+                continue;
+            cover.url = url;
+            cover.holder.child = coverActor(url, cover.size, cover.radius, 'rsx-island-cover');
+        }
     }
 
     _timerLabel(styleClass) {
