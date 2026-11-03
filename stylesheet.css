@@ -685,7 +685,7 @@
   padding: 0 2px;
 }
 .rsx-island-eq-bar {
-  background-color: #6ee07a;
+  background-color: -st-accent-color;
   border-radius: 2px;
 }
 .rsx-island-progress {
@@ -947,7 +947,7 @@
 }
 .rsx-sysmon-bar-fill {
   border-radius: 3px;
-  background-color: #6ee07a;
+  background-color: -st-accent-color;
 }
 .rsx-sysmon-bar-fill.rsx-sysmon-warm { background-color: #ff9f0a; }
 .rsx-sysmon-bar-fill.rsx-sysmon-hot { background-color: #ff453a; }
