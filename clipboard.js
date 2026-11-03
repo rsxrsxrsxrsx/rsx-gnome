@@ -172,6 +172,12 @@ class History {
 
     // Put an item back on the clipboard (recording it moves it to the top).
     copy(item) {
+        // The island shouldn't flash "Copied" for a paste from the history.
+        globalThis.rsxClipboardBusy = true;
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            globalThis.rsxClipboardBusy = false;
+            return GLib.SOURCE_REMOVE;
+        });
         if (item.type === 'text') {
             this._clipboard.set_text(CLIPBOARD, item.text);
         } else {

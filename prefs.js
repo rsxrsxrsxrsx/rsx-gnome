@@ -97,8 +97,10 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('Like "mon, 21.11, 14:11"')));
         panel.add(checkRow(settings, 'clock-right', _('Clock on the right'),
             _('Clock and calendar at the right end of the top bar, like on a Mac')));
+        panel.add(checkRow(settings, 'app-menu', _('App menu'),
+            _('The focused app on the left: its windows, new window, quit and force quit')));
         panel.add(checkRow(settings, 'system-monitor', _('System monitor'),
-            _('CPU, memory and temperature left of the tray icons; click for details')));
+            _('CPU, memory and temperature left of the tray icons; click for a graph, disk, GPU and processes')));
         const net = checkRow(settings, 'system-monitor-network', _('Network speed in the top bar'),
             _('Download and upload next to the system monitor'));
         settings.bind('system-monitor', net, 'sensitive', Gio.SettingsBindFlags.GET);
@@ -128,6 +130,10 @@ export default class RsxPreferences extends ExtensionPreferences {
         const look = group(page, _('Appearance'));
         look.add(checkRow(settings, 'dynamic-island', _('Dynamic island'),
             _('A black pill at the top for music, timers, notifications and system events')));
+        const clip = checkRow(settings, 'island-clipboard', _('Copied notice'),
+            _('A short "Copied" in the island when you copy something'));
+        settings.bind('dynamic-island', clip, 'sensitive', Gio.SettingsBindFlags.GET);
+        look.add(clip);
         look.add(checkRow(settings, 'shake-cursor', _('Shake to find the cursor'),
             _('Shake the mouse and the pointer grows big for a moment')));
         look.add(checkRow(settings, 'mac-osd', _('macOS-style volume popup'),

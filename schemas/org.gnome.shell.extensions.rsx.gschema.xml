@@ -96,6 +96,16 @@
       <summary>Clock and calendar at the right end of the top bar</summary>
     </key>
 
+    <key name="app-menu" type="b">
+      <default>true</default>
+      <summary>The focused app's name and menu on the left of the top bar</summary>
+    </key>
+
+    <key name="island-clipboard" type="b">
+      <default>true</default>
+      <summary>The island shows a short "Copied" when something is copied</summary>
+    </key>
+
     <key name="system-monitor" type="b">
       <default>true</default>
       <summary>CPU, memory and temperature in the top bar, left of the tray icons</summary>

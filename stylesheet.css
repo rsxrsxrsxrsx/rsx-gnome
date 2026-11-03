@@ -688,6 +688,21 @@
   background-color: -st-accent-color;
   border-radius: 2px;
 }
+.rsx-island-live {
+  spacing: 7px;
+  padding: 2px 0;
+}
+.rsx-island-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: #ff453a;
+}
+.rsx-island-live-label {
+  font-size: 9pt;
+  font-weight: 700;
+  color: #ff453a;
+}
 .rsx-island-progress {
   spacing: 10px;
 }
@@ -781,6 +796,28 @@
 }
 .rsx-island-chip:hover {
   background-color: rgba(255, 159, 10, 0.3);
+}
+.rsx-island-toggle-content {
+  spacing: 7px;
+}
+.rsx-island-toggle-icon {
+  icon-size: 14px;
+}
+.rsx-island-toggle-on {
+  background-color: -st-accent-color;
+  color: -st-accent-fg-color;
+}
+.rsx-island-toggle-on:hover {
+  background-color: -st-accent-color;
+}
+/* Do Not Disturb / stay awake marks in the small pill */
+.rsx-island-mode-icon {
+  icon-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+.rsx-island-compact-modes {
+  padding: 0 12px;
+  spacing: 8px;
 }
 
 /* activity */
@@ -951,25 +988,50 @@
 }
 .rsx-sysmon-bar-fill.rsx-sysmon-warm { background-color: #ff9f0a; }
 .rsx-sysmon-bar-fill.rsx-sysmon-hot { background-color: #ff453a; }
-.rsx-sysmon-cores {
-  spacing: 3px;
-  height: 34px;
+.rsx-sysmon-graph {
+  height: 56px;
+  color: -st-accent-color;
 }
-.rsx-sysmon-core {
-  width: 7px;
-  border-radius: 2px;
-  background-color: rgba(255, 255, 255, 0.12);
+.rsx-sysmon-legend {
+  spacing: 14px;
 }
-.rsx-sysmon-core .rsx-sysmon-bar-fill {
-  border-radius: 2px;
+.rsx-sysmon-legend-key {
+  spacing: 6px;
 }
+.rsx-sysmon-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+}
+.rsx-sysmon-legend-cpu { background-color: -st-accent-color; }
+.rsx-sysmon-legend-mem { background-color: rgba(255, 255, 255, 0.45); }
 .rsx-sysmon-procs {
   spacing: 3px;
 }
 .rsx-sysmon-proc {
-  spacing: 12px;
   font-size: 9.5pt;
   font-feature-settings: "tnum";
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+/* (St breaks on negative margins: the section title and hint are moved in
+   to line up with the rows instead) */
+.rsx-sysmon-procs .rsx-sysmon-section,
+.rsx-sysmon-procs .rsx-sysmon-hint {
+  padding-left: 6px;
+}
+.rsx-sysmon-proc > StBoxLayout {
+  spacing: 12px;
+}
+.rsx-sysmon-proc:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.rsx-sysmon-proc-denied .rsx-sysmon-proc-cpu {
+  color: rgba(255, 255, 255, 0.55);
+}
+.rsx-sysmon-hint {
+  font-size: 8pt;
+  padding-top: 4px;
 }
 .rsx-sysmon-proc-mem {
   color: rgba(255, 255, 255, 0.55);
@@ -979,4 +1041,16 @@
 .rsx-sysmon-proc-cpu {
   min-width: 3.5em;
   text-align: right;
+}
+
+/* App menu on the left of the top bar */
+.rsx-appmenu-box {
+  spacing: 7px;
+}
+.rsx-appmenu-icon {
+  icon-size: 16px;
+}
+.rsx-appmenu-label {
+  font-weight: 700;
+  max-width: 260px;
 }

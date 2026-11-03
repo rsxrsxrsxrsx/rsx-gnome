@@ -2,8 +2,9 @@
 //
 // System monitor in the top bar, left of the tray icons: CPU load, memory
 // and CPU temperature (and optionally network speed). A click opens details:
-// every core, memory and swap, the NVIDIA GPU, network and the processes
-// that use the most CPU right now.
+// a two-minute graph of CPU and memory, swap, the NVIDIA GPU, the disk,
+// network and the processes that use the most CPU right now (a click on one
+// quits it).
 //
 // Everything is read from /proc and /sys, which are cheap to read. The GPU
 // (nvidia-smi) and the process list cost more, so they only run while the
@@ -20,9 +21,20 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {_} from './i18n.js';
 import {COMPACT_MAX_WIDTH} from './island.js';
+import {confirm} from './confirm.js';
 
 const INTERVAL = 2; // seconds
 const TOP_PROCESSES = 6;
+const HISTORY = 60; // samples: two minutes at INTERVAL
+const CONFIRM_MS = 3000;
+// Never offered for killing: the session would go with them.
+const PROTECTED = new Set([
+    'gnome-shell', 'gnome-session-binary', 'gnome-session-service', 'Xwayland', 'systemd',
+    'dbus-daemon', 'dbus-broker', 'pipewire', 'wireplumber', 'pipewire-pulse', 'gsd-xsettings',
+    'gnome-keyring-daemon', 'kworker', 'kthreadd', 'init',
+]);
+// Whole disks in /proc/diskstats (not their partitions).
+const WHOLE_DISK = /^(nvme\d+n\d+|sd[a-z]+|vd[a-z]+|xvd[a-z]+|mmcblk\d+)$/;
 // Room kept free between the island (at its widest) and the monitor.
 const ISLAND_GAP = 16;
 const MONITOR_APPS = [
@@ -126,6 +138,41 @@ function readNet() {
     return {rx, tx};
 }
 
+// Bytes read and written by all disks since boot.
+function readDisks() {
+    let read_ = 0, written = 0;
+    for (const line of read('/proc/diskstats')?.split('\n') ?? []) {
+        const f = line.trim().split(/\s+/);
+        if (f.length < 10 || !WHOLE_DISK.test(f[2]))
+            continue;
+        read_ += Number(f[5]) * 512;
+        written += Number(f[9]) * 512;
+    }
+    return {read: read_, written};
+}
+
+// Size and free space of the disk with the home folder.
+function readSpace() {
+    try {
+        const info = Gio.File.new_for_path(GLib.get_home_dir())
+            .query_filesystem_info('filesystem::size,filesystem::free', null);
+        const size = info.get_attribute_uint64('filesystem::size');
+        const free = info.get_attribute_uint64('filesystem::free');
+        return size ? {size, used: size - free} : null;
+    } catch {
+        return null;
+    }
+}
+
+function ownedByMe(pid) {
+    try {
+        const info = Gio.File.new_for_path(`/proc/${pid}`).query_info('unix::uid', Gio.FileQueryInfoFlags.NONE, null);
+        return info.get_attribute_uint32('unix::uid') === new Gio.Credentials().get_unix_user();
+    } catch {
+        return false;
+    }
+}
+
 // {name → {ticks, rss}} for every process, grouped by name (a browser is
 // one line, not thirty).
 function readProcesses() {
@@ -151,9 +198,10 @@ function readProcesses() {
         // f[0] is field 3 (state): utime is 14, stime 15, rss 24.
         const ticks = Number(f[11]) + Number(f[12]);
         const rss = Number(f[21]) * page;
-        const g = groups.get(name) ?? {ticks: 0, rss: 0};
+        const g = groups.get(name) ?? {ticks: 0, rss: 0, pids: []};
         g.ticks += ticks;
         g.rss += rss;
+        g.pids.push(Number(pid));
         groups.set(name, g);
     }
     dir.close();
@@ -212,27 +260,60 @@ class Bar {
     }
 }
 
-// A column of the per-core chart.
-class CoreBar {
+// CPU and memory over the last two minutes: two lines, CPU in the accent
+// color, memory dimmer.
+class Graph {
     constructor() {
-        this.actor = new St.Widget({style_class: 'rsx-sysmon-core', y_expand: true});
-        this._fill = new St.Widget({style_class: 'rsx-sysmon-bar-fill'});
-        this.actor.add_child(this._fill);
-        this._fraction = 0;
-        this.actor.connect('notify::height', () => this._place());
-        this.actor.connect('notify::width', () => this._place());
+        this.actor = new St.DrawingArea({style_class: 'rsx-sysmon-graph', x_expand: true});
+        this.samples = [];
+        this.actor.connect('repaint', () => this._draw());
     }
 
-    set(fraction) {
-        this._fraction = Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0;
-        setLevel(this._fill, this._fraction);
-        this._place();
+    push(cpu, mem) {
+        this.samples.push({cpu, mem});
+        if (this.samples.length > HISTORY)
+            this.samples.shift();
     }
 
-    _place() {
-        const h = Math.max(1, Math.round(this.actor.height * this._fraction));
-        this._fill.set_position(0, this.actor.height - h);
-        this._fill.set_size(this.actor.width, h);
+    _draw() {
+        const cr = this.actor.get_context();
+        const [w, h] = this.actor.get_surface_size();
+        const node = this.actor.get_theme_node();
+        const accent = node.get_foreground_color();
+        const rgba = (c, a) => cr.setSourceRGBA(c.red / 255, c.green / 255, c.blue / 255, a);
+        const white = {red: 255, green: 255, blue: 255};
+        const step = w / (HISTORY - 1);
+        const pad = 1.5;
+        const y = v => pad + (h - 2 * pad) * (1 - Math.max(0, Math.min(1, v)));
+
+        // Guides at 50% and 100%.
+        rgba(white, 0.08);
+        cr.setLineWidth(1);
+        for (const v of [0.5, 1]) {
+            cr.moveTo(0, Math.round(y(v)) + 0.5);
+            cr.lineTo(w, Math.round(y(v)) + 0.5);
+        }
+        cr.stroke();
+
+        const n = this.samples.length;
+        const x0 = w - (n - 1) * step;
+        const line = (key, color, lineAlpha, fillAlpha) => {
+            if (n < 2)
+                return;
+            cr.moveTo(x0, y(this.samples[0][key]));
+            this.samples.forEach((p, i) => cr.lineTo(x0 + i * step, y(p[key])));
+            rgba(color, lineAlpha);
+            cr.setLineWidth(1.5);
+            cr.strokePreserve();
+            cr.lineTo(w, h);
+            cr.lineTo(x0, h);
+            cr.closePath();
+            rgba(color, fillAlpha);
+            cr.fill();
+        };
+        line('mem', white, 0.45, 0.06);
+        line('cpu', accent, 1, 0.22);
+        cr.$dispose();
     }
 }
 
@@ -269,6 +350,8 @@ export class SystemMonitor {
         this._prevCpu = readCpu();
         this._prevNet = {...readNet(), time: GLib.get_monotonic_time()};
         this._prevProc = null;
+        this._prevDisk = {...readDisks(), time: GLib.get_monotonic_time()};
+        this._confirm = null;
         this._gpu = null;
         this._gpuMissing = !GLib.find_program_in_path('nvidia-smi');
 
@@ -311,6 +394,8 @@ export class SystemMonitor {
             if (open) {
                 this._prevProc = null;
                 this._update(true);
+            } else {
+                this._setConfirm(null);
             }
         }, this);
 
@@ -394,14 +479,20 @@ export class SystemMonitor {
         });
 
         this._cpuStat = statRow(_('Processor'), false);
-        this._cores = new St.BoxLayout({style_class: 'rsx-sysmon-cores'});
-        this._coreBars = [];
-        for (let i = 1; i < this._prevCpu.length; i++) {
-            const bar = new CoreBar();
-            this._coreBars.push(bar);
-            this._cores.add_child(bar.actor);
-        }
-        this._cpuStat.actor.insert_child_at_index(this._cores, 1);
+        this._graph = new Graph();
+        this._cpuStat.actor.insert_child_at_index(this._graph.actor, 1);
+        const legend = new St.BoxLayout({style_class: 'rsx-sysmon-legend'});
+        const key = (text, cls) => {
+            const k = new St.BoxLayout({style_class: 'rsx-sysmon-legend-key'});
+            k.add_child(new St.Widget({style_class: `rsx-sysmon-legend-dot ${cls}`, y_align: Clutter.ActorAlign.CENTER}));
+            k.add_child(label(text, 'rsx-sysmon-stat-sub'));
+            return k;
+        };
+        legend.add_child(key(_('Processor'), 'rsx-sysmon-legend-cpu'));
+        legend.add_child(key(_('Memory'), 'rsx-sysmon-legend-mem'));
+        legend.add_child(new St.Widget({x_expand: true}));
+        legend.add_child(label(_('2 min'), 'rsx-sysmon-stat-sub'));
+        this._cpuStat.actor.insert_child_at_index(legend, 2);
         content.add_child(this._cpuStat.actor);
 
         this._memStat = statRow(_('Memory'));
@@ -410,6 +501,9 @@ export class SystemMonitor {
         this._gpuStat = statRow(_('Graphics'));
         this._gpuStat.actor.visible = false;
         content.add_child(this._gpuStat.actor);
+
+        this._diskStat = statRow(_('Disk'));
+        content.add_child(this._diskStat.actor);
 
         this._netStat = statRow(_('Network'), false);
         content.add_child(this._netStat.actor);
@@ -421,17 +515,23 @@ export class SystemMonitor {
         this._procBox.add_child(label(_('Using the most CPU'), 'rsx-sysmon-section'));
         this._procRows = [];
         for (let i = 0; i < TOP_PROCESSES; i++) {
-            const row = new St.BoxLayout({style_class: 'rsx-sysmon-proc'});
+            const line = new St.BoxLayout({x_expand: true});
             const name = label('', 'rsx-sysmon-proc-name', {x_expand: true});
             name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
             const mem = label('', 'rsx-sysmon-proc-mem');
             const cpu = label('', 'rsx-sysmon-proc-cpu');
-            row.add_child(name);
-            row.add_child(mem);
-            row.add_child(cpu);
+            line.add_child(name);
+            line.add_child(mem);
+            line.add_child(cpu);
+            // A click asks in a dialog, then quits it.
+            const row = new St.Button({style_class: 'rsx-sysmon-proc', child: line, x_expand: true, can_focus: true});
+            const r = {row, name, mem, cpu, proc: null};
+            row.connect('clicked', () => this._onProcessClick(r));
             this._procBox.add_child(row);
-            this._procRows.push({row, name, mem, cpu});
+            this._procRows.push(r);
         }
+        this._procHint = label(_('Click a process to quit it'), 'rsx-sysmon-stat-sub rsx-sysmon-hint');
+        this._procBox.add_child(this._procHint);
         content.add_child(this._procBox);
 
         const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
@@ -490,6 +590,13 @@ export class SystemMonitor {
         this._upLabel.text = `↑ ${formatBytes(up, true)}`;
         this._fit();
 
+        this._graph.push(all, memFraction);
+        const disk = readDisks();
+        const diskSeconds = Math.max(0.001, (now - this._prevDisk.time) / 1e6);
+        const diskRead = Math.max(0, (disk.read - this._prevDisk.read) / diskSeconds);
+        const diskWrite = Math.max(0, (disk.written - this._prevDisk.written) / diskSeconds);
+        this._prevDisk = {...disk, time: now};
+
         if (!detailed)
             return;
 
@@ -497,7 +604,7 @@ export class SystemMonitor {
         this._cpuStat.value.text = `${Math.round(all * 100)}%${temp === null ? '' : `  ·  ${Math.round(temp)}°`}`;
         this._cpuStat.sub.text = `${_('Load')}  ${load}`;
         this._cpuStat.sub.visible = !!load;
-        this._coreBars.forEach((bar, i) => bar.set(usage[i + 1] ?? 0));
+        this._graph.actor.queue_repaint();
 
         this._memStat.value.text = `${formatBytes(mem.used)} / ${formatBytes(mem.total)}`;
         this._memStat.bar.set(memFraction);
@@ -505,6 +612,16 @@ export class SystemMonitor {
         this._memStat.sub.text = `${_('Swap')}  ${formatBytes(mem.swapUsed)} / ${formatBytes(mem.swapTotal)}`;
 
         this._netStat.value.text = `↓ ${formatBytes(down, true)}   ↑ ${formatBytes(up, true)}`;
+
+        const space = readSpace();
+        this._diskStat.actor.visible = !!space;
+        if (space) {
+            this._diskStat.value.text = `${formatBytes(space.used)} / ${formatBytes(space.size)}`;
+            this._diskStat.bar.set(space.used / space.size);
+            this._diskStat.sub.visible = true;
+            this._diskStat.sub.text =
+                `${_('Read')} ${formatBytes(diskRead, true)}  ·  ${_('Write')} ${formatBytes(diskWrite, true)}`;
+        }
 
         this._updateProcesses(cpuTicks);
         this._updateGpu();
@@ -518,7 +635,7 @@ export class SystemMonitor {
         for (const [name, p] of procs) {
             const before = prev?.get(name);
             const ticks = before ? Math.max(0, p.ticks - before.ticks) : 0;
-            rows.push({name, cpu: cpuTicks > 0 ? ticks / cpuTicks : 0, rss: p.rss});
+            rows.push({name, cpu: cpuTicks > 0 ? ticks / cpuTicks : 0, rss: p.rss, pids: p.pids});
         }
         // Until there's a second sample, order by memory.
         rows.sort(prev ? (a, b) => b.cpu - a.cpu || b.rss - a.rss : (a, b) => b.rss - a.rss);
@@ -527,10 +644,64 @@ export class SystemMonitor {
             r.row.visible = !!p;
             if (!p)
                 return;
+            r.proc = p;
             r.name.text = p.name;
             r.mem.text = formatBytes(p.rss);
-            r.cpu.text = prev ? `${(p.cpu * 100).toFixed(1)}%` : '';
+            this._syncRowConfirm(r, prev ? `${(p.cpu * 100).toFixed(1)}%` : '');
         });
+    }
+
+    _syncRowConfirm(r, cpuText) {
+        const asking = this._confirm?.name === r.proc?.name;
+        r.row.remove_style_class_name('rsx-sysmon-proc-confirm');
+        r.row.remove_style_class_name('rsx-sysmon-proc-denied');
+        if (asking)
+            r.row.add_style_class_name('rsx-sysmon-proc-denied');
+        r.cpu.text = asking ? _("Can't quit") : cpuText;
+        r.cpuText = cpuText;
+    }
+
+    _onProcessClick(r) {
+        const p = r.proc;
+        if (!p)
+            return;
+        const mine = PROTECTED.has(p.name) ? [] : p.pids.filter(ownedByMe);
+        if (!mine.length) {
+            // System or someone else's: say so on the row for a moment.
+            this._setConfirm({name: p.name, denied: true});
+            return;
+        }
+        this._button.menu.close();
+        const count = mine.length;
+        confirm({
+            title: _('Quit “%s”?').replace('%s', p.name),
+            description: (count > 1
+                ? _('%d processes will be asked to quit.').replace('%d', count)
+                : _('The process will be asked to quit.')) + ' ' + _('Unsaved work may be lost.'),
+            action: _('Quit'),
+            onConfirm: () => {
+                try {
+                    Gio.Subprocess.new(['kill', '-TERM', ...mine.map(String)], Gio.SubprocessFlags.STDERR_SILENCE);
+                } catch (e) {
+                    console.warn(`rsx@rsx: kill: ${e.message}`);
+                }
+            },
+        });
+    }
+
+    _setConfirm(confirm) {
+        if (this._confirmId)
+            GLib.source_remove(this._confirmId);
+        this._confirmId = 0;
+        this._confirm = confirm;
+        if (confirm) {
+            this._confirmId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, CONFIRM_MS, () => {
+                this._confirmId = 0;
+                this._setConfirm(null);
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+        this._procRows.forEach(r => this._syncRowConfirm(r, r.cpuText ?? ''));
     }
 
     _updateGpu() {
@@ -574,6 +745,9 @@ export class SystemMonitor {
     }
 
     disable() {
+        if (this._confirmId)
+            GLib.source_remove(this._confirmId);
+        this._confirmId = 0;
         if (this._timer) {
             GLib.source_remove(this._timer);
             this._timer = 0;

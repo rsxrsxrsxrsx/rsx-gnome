@@ -25,6 +25,7 @@ import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
 import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {_} from './i18n.js';
 import {activePlayer, artistsText, coverActor} from './media.js';
+import {Modes, watchBluetooth, watchCalendar, watchClipboard} from './islandEvents.js';
 
 const MORPH_TIME = 460;
 const FADE_TIME = 160;
@@ -88,8 +89,11 @@ function formatTime(ms) {
     return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }
 
-// MPRIS durations are in microseconds; some players send nothing.
-function trackLength(player) {
+// MPRIS durations are in microseconds; some players send nothing. Live
+// streams in browsers send the largest possible number instead.
+const MAX_LENGTH_MS = 24 * 3600 * 1000;
+
+function rawLength(player) {
     try {
         const v = player?._playerProxy?.Metadata?.['mpris:length']?.deepUnpack();
         return v > 0 ? Number(v) / 1000 : 0;
@@ -98,7 +102,20 @@ function trackLength(player) {
     }
 }
 
+function trackLength(player) {
+    const length = rawLength(player);
+    return length <= MAX_LENGTH_MS ? length : 0;
+}
+
+function isLive(player) {
+    return rawLength(player) > MAX_LENGTH_MS;
+}
+
 export class DynamicIsland {
+    constructor(settings) {
+        this._settings = settings;
+    }
+
     enable() {
         this._activities = [];
         this._activity = null;
@@ -134,6 +151,13 @@ export class DynamicIsland {
         this._watchMedia();
         this._watchNotifications();
         this._watchSystem();
+        const push = activity => this._pushActivity(activity);
+        this._stops = [
+            watchCalendar(push),
+            watchBluetooth(push),
+            watchClipboard(push, this._settings),
+        ];
+        this._modes = new Modes(() => this._update());
         this._update();
     }
 
@@ -170,20 +194,21 @@ export class DynamicIsland {
 
         const player = this._player();
         const timer = this._timer;
-        if (!player && !timer)
+        const modes = `${this._modes?.dnd ? 'd' : ''}${this._modes?.awake ? 'a' : ''}`;
+        if (!player && !timer && !modes)
             return null;
         // Artist and cover often arrive a moment after the title: those
         // update in place (see _refresh), only a new title rebuilds.
         const music = player ? `${player._busName}|${player.trackTitle}` : '';
         const timerKind = timer?.kind ?? '';
-        if (this._expanded) {
+        if (this._expanded && (player || timer)) {
             return {
                 key: `expanded:${music}:${timerKind}`,
                 build: () => this._buildExpanded(player, timer),
             };
         }
         return {
-            key: `compact:${music}:${timerKind}:${this._clockUnder()}`,
+            key: `compact:${music}:${timerKind}:${modes}:${this._clockUnder()}`,
             build: () => this._buildCompact(player, timer),
         };
     }
@@ -378,11 +403,17 @@ export class DynamicIsland {
 
         if (player)
             this._live.player = player;
-        const lead = player
-            ? this._cover(player, 18, 5)
-            : new St.Icon({icon_name: 'alarm-symbolic', style_class: 'rsx-island-accent rsx-island-small-icon'});
-        lead.y_align = Clutter.ActorAlign.CENTER;
-        box.add_child(lead);
+        let lead = null;
+        if (player)
+            lead = this._cover(player, 18, 5);
+        else if (timer)
+            lead = new St.Icon({icon_name: 'alarm-symbolic', style_class: 'rsx-island-accent rsx-island-small-icon'});
+        if (lead) {
+            lead.y_align = Clutter.ActorAlign.CENTER;
+            box.add_child(lead);
+        } else {
+            box.add_style_class_name('rsx-island-compact-modes');
+        }
 
         if (clockUnder) {
             const clock = label(this._clockText(), 'rsx-island-clock', {x_expand: true, x_align: Clutter.ActorAlign.CENTER});
@@ -392,9 +423,26 @@ export class DynamicIsland {
             box.add_child(this._titleLabel(player, 'rsx-island-compact-title', {x_expand: true}));
         }
 
-        const tail = timer ? this._timerLabel('rsx-island-compact-timer') : this._eq(player);
-        tail.y_align = Clutter.ActorAlign.CENTER;
-        box.add_child(tail);
+        // Do Not Disturb and "stay awake" as small marks.
+        for (const [on, icon] of [[this._modes?.dnd, 'rsx-moon'], [this._modes?.awake, 'rsx-coffee']]) {
+            if (on) {
+                box.add_child(new St.Icon({
+                    gicon: this._icon(icon),
+                    style_class: 'rsx-island-mode-icon',
+                    y_align: Clutter.ActorAlign.CENTER,
+                }));
+            }
+        }
+
+        let tail = null;
+        if (timer)
+            tail = this._timerLabel('rsx-island-compact-timer');
+        else if (player)
+            tail = this._eq(player);
+        if (tail) {
+            tail.y_align = Clutter.ActorAlign.CENTER;
+            box.add_child(tail);
+        }
 
         if (clockUnder) {
             // At least as wide as the panel clock, so it's covered completely.
@@ -458,6 +506,13 @@ export class DynamicIsland {
                 this._makeSeekable(seek, player, progress);
             }
 
+            if (!trackLength(player) && isLive(player)) {
+                const live = new St.BoxLayout({style_class: 'rsx-island-live', x_align: Clutter.ActorAlign.START});
+                live.add_child(new St.Widget({style_class: 'rsx-island-live-dot', y_align: Clutter.ActorAlign.CENTER}));
+                live.add_child(label(_('Live'), 'rsx-island-live-label'));
+                box.add_child(live);
+            }
+
             const controls = new St.BoxLayout({style_class: 'rsx-island-controls', x_align: Clutter.ActorAlign.CENTER});
             const prev = iconButton('media-skip-backward-symbolic', '', () => player.previous());
             const play = iconButton('media-playback-start-symbolic', 'rsx-island-play', () => player.playPause());
@@ -498,10 +553,55 @@ export class DynamicIsland {
         return row;
     }
 
+    _icon(name) {
+        const path = `${import.meta.url.replace(/^file:\/\//, '').replace(/\/[^/]*$/, '')}/icons/${name}-symbolic.svg`;
+        return Gio.FileIcon.new(Gio.File.new_for_path(path));
+    }
+
+    _setMode(mode, on) {
+        this._modes[mode] = on;
+        const dnd = mode === 'dnd';
+        this._pushActivity({
+            kind: 'mode',
+            gicon: this._icon(dnd ? 'rsx-moon' : 'rsx-coffee'),
+            accent: on,
+            title: dnd
+                ? (on ? _('Do Not Disturb is on') : _('Do Not Disturb is off'))
+                : (on ? _('Staying awake') : _('Can sleep again')),
+            subtitle: dnd
+                ? (on ? _('Notifications are silent') : null)
+                : (on ? _('The screen won\'t blank or sleep') : null),
+            timeout: SHORT_MS,
+        });
+    }
+
     _buildPicker() {
         const s = sf();
         const box = vbox('rsx-island-expanded rsx-island-picker');
         box._rsxWidth = EXPANDED_WIDTH * s;
+
+        const modes = new St.BoxLayout({style_class: 'rsx-island-chips'});
+        const toggle = (mode, icon, text) => {
+            const on = this._modes[mode];
+            const content = new St.BoxLayout({style_class: 'rsx-island-toggle-content', x_align: Clutter.ActorAlign.CENTER});
+            content.add_child(new St.Icon({gicon: this._icon(icon), style_class: 'rsx-island-toggle-icon'}));
+            content.add_child(label(text, 'rsx-island-toggle-label'));
+            const button = new St.Button({
+                style_class: `rsx-island-chip rsx-island-toggle${on ? ' rsx-island-toggle-on' : ''}`,
+                child: content,
+                can_focus: true,
+                x_expand: true,
+            });
+            button.connect('clicked', () => {
+                this._picker = false;
+                this._setMode(mode, !on);
+            });
+            return button;
+        };
+        modes.add_child(toggle('dnd', 'rsx-moon', _('Do Not Disturb')));
+        modes.add_child(toggle('awake', 'rsx-coffee', _('Stay awake')));
+        box.add_child(modes);
+        box.add_child(new St.Widget({style_class: 'rsx-island-separator', x_expand: true}));
 
         const head = new St.BoxLayout({style_class: 'rsx-island-head'});
         head.add_child(new St.Icon({
@@ -546,6 +646,7 @@ export class DynamicIsland {
             lead = new St.Icon({
                 gicon: activity.gicon ?? null,
                 icon_name: activity.gicon ? null : activity.icon,
+                fallback_icon_name: activity.fallbackIcon ?? null,
                 style_class: `rsx-island-activity-icon ${activity.accent ? 'rsx-island-accent' : ''}`,
             });
         }
@@ -881,8 +982,11 @@ export class DynamicIsland {
         if (this._clockUnder()) {
             // The pill sits over the clock: a click opens the calendar as usual.
             Main.panel.statusArea.dateMenu?.menu.toggle();
-        } else {
-            this._live?.player?.raise();
+        } else if (this._live?.player) {
+            this._live.player.raise();
+        } else if (!this._timer) {
+            this._togglePicker();
+            return Clutter.EVENT_STOP;
         }
         this._update();
         return Clutter.EVENT_STOP;
@@ -1258,6 +1362,10 @@ export class DynamicIsland {
     // -- teardown -------------------------------------------------------------
 
     disable() {
+        this._stops?.forEach(stop => stop());
+        this._stops = null;
+        this._modes?.destroy();
+        this._modes = null;
         for (const id of ['_activityId', '_hoverId', '_eqId', '_progressId', '_timerId', '_pauseId']) {
             if (this[id])
                 GLib.source_remove(this[id]);

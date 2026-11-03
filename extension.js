@@ -33,6 +33,7 @@ import {LockMedia} from './lockmedia.js';
 import {ShakeCursor} from './cursor.js';
 import {Runner} from './runner.js';
 import {SystemMonitor} from './sysmon.js';
+import {AppMenu} from './appmenu.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 import {isRussian, setLanguage} from './i18n.js';
 
@@ -928,6 +929,7 @@ const FEATURES = {
     'clock-right': ClockRight,
     'tidy-quick-settings': TidyQuickSettings,
     'system-monitor': SystemMonitor,
+    'app-menu': AppMenu,
     'window-captions': WindowCaptions,
     'equal-window-sizes': EqualWindowSizes,
     'window-order': WindowOrder,
