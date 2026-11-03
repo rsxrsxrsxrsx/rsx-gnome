@@ -97,6 +97,12 @@ export default class RsxPreferences extends ExtensionPreferences {
             _('Like "mon, 21.11, 14:11"')));
         panel.add(checkRow(settings, 'clock-right', _('Clock on the right'),
             _('Clock and calendar at the right end of the top bar, like on a Mac')));
+        panel.add(checkRow(settings, 'system-monitor', _('System monitor'),
+            _('CPU, memory and temperature left of the tray icons; click for details')));
+        const net = checkRow(settings, 'system-monitor-network', _('Network speed in the top bar'),
+            _('Download and upload next to the system monitor'));
+        settings.bind('system-monitor', net, 'sensitive', Gio.SettingsBindFlags.GET);
+        panel.add(net);
         panel.add(checkRow(settings, 'blur-panel', _('Blurred top bar'),
             _('Translucent top bar with the wallpaper blurred under it')));
         const scale = new Gtk.Scale({

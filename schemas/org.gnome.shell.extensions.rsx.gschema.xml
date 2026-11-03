@@ -96,6 +96,16 @@
       <summary>Clock and calendar at the right end of the top bar</summary>
     </key>
 
+    <key name="system-monitor" type="b">
+      <default>true</default>
+      <summary>CPU, memory and temperature in the top bar, left of the tray icons</summary>
+    </key>
+
+    <key name="system-monitor-network" type="b">
+      <default>false</default>
+      <summary>Also show network speed in the top bar</summary>
+    </key>
+
     <key name="tidy-quick-settings" type="b">
       <default>true</default>
       <summary>Hide power mode, night light and dark style from quick settings and the top bar</summary>

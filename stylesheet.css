@@ -873,8 +873,110 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
-/* Clock on the right: no spare room around it */
+/* Clock on the right: as close to the quick settings icons as they are to
+   each other. The hover highlight is drawn around .clock, so it keeps a
+   little padding; the button's own (invisible) padding goes. */
+#panel .panel-button.rsx-clock-right {
+  -natural-hpadding: 0;
+  -minimum-hpadding: 0;
+}
 .rsx-clock-right .clock {
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-left: 6px;
+  padding-right: 6px;
+  margin-right: 4px;
+}
+
+/* System monitor in the top bar: icons like their neighbours, each with
+   its number; one button, so one hover for the whole group */
+.rsx-sysmon-panel {
+  spacing: 12px;
+}
+.rsx-sysmon-item {
+  spacing: 5px;
+}
+.rsx-sysmon-icon {
+  padding: 0;
+}
+.rsx-sysmon-value {
+  font-feature-settings: "tnum";
+  font-weight: 500;
+}
+.rsx-sysmon-net {
+  spacing: 0;
+  min-width: 4.6em;
+}
+.rsx-sysmon-net-line {
+  font-size: 7.5pt;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+.rsx-sysmon-warm { color: #ff9f0a; }
+.rsx-sysmon-hot { color: #ff453a; }
+
+.rsx-sysmon-item-content {
+  padding: 4px 6px;
+}
+.rsx-sysmon-item-content:hover,
+.rsx-sysmon-item-content:active {
+  background-color: transparent;
+}
+.rsx-sysmon-content {
+  spacing: 14px;
+  min-width: 300px;
+}
+.rsx-sysmon-stat {
+  spacing: 6px;
+}
+.rsx-sysmon-stat-title,
+.rsx-sysmon-section {
+  font-weight: 700;
+}
+.rsx-sysmon-stat-value {
+  font-feature-settings: "tnum";
+  color: rgba(255, 255, 255, 0.85);
+}
+.rsx-sysmon-stat-sub {
+  font-size: 9pt;
+  font-feature-settings: "tnum";
+  color: rgba(255, 255, 255, 0.55);
+}
+.rsx-sysmon-bar {
+  height: 6px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+.rsx-sysmon-bar-fill {
+  border-radius: 3px;
+  background-color: #6ee07a;
+}
+.rsx-sysmon-bar-fill.rsx-sysmon-warm { background-color: #ff9f0a; }
+.rsx-sysmon-bar-fill.rsx-sysmon-hot { background-color: #ff453a; }
+.rsx-sysmon-cores {
+  spacing: 3px;
+  height: 34px;
+}
+.rsx-sysmon-core {
+  width: 7px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+.rsx-sysmon-core .rsx-sysmon-bar-fill {
+  border-radius: 2px;
+}
+.rsx-sysmon-procs {
+  spacing: 3px;
+}
+.rsx-sysmon-proc {
+  spacing: 12px;
+  font-size: 9.5pt;
+  font-feature-settings: "tnum";
+}
+.rsx-sysmon-proc-mem {
+  color: rgba(255, 255, 255, 0.55);
+  min-width: 4.5em;
+  text-align: right;
+}
+.rsx-sysmon-proc-cpu {
+  min-width: 3.5em;
+  text-align: right;
 }

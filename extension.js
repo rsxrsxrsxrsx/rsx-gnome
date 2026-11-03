@@ -32,6 +32,7 @@ import {emphasized} from './motion.js';
 import {LockMedia} from './lockmedia.js';
 import {ShakeCursor} from './cursor.js';
 import {Runner} from './runner.js';
+import {SystemMonitor} from './sysmon.js';
 import {getInputSourceManager} from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 import {isRussian, setLanguage} from './i18n.js';
 
@@ -926,6 +927,7 @@ const FEATURES = {
     'short-date': ShortDate,
     'clock-right': ClockRight,
     'tidy-quick-settings': TidyQuickSettings,
+    'system-monitor': SystemMonitor,
     'window-captions': WindowCaptions,
     'equal-window-sizes': EqualWindowSizes,
     'window-order': WindowOrder,
