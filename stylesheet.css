@@ -938,20 +938,11 @@
   font-feature-settings: "tnum";
   font-weight: 500;
 }
-.rsx-sysmon-net {
-  spacing: 0;
-  min-width: 4.6em;
-}
-.rsx-sysmon-net-line {
-  font-size: 7.5pt;
-  font-weight: 600;
-  font-feature-settings: "tnum";
-}
 .rsx-sysmon-warm { color: #ff9f0a; }
 .rsx-sysmon-hot { color: #ff453a; }
 
 .rsx-sysmon-item-content {
-  padding: 4px 6px;
+  padding: 6px 6px 2px;
 }
 .rsx-sysmon-item-content:hover,
 .rsx-sysmon-item-content:active {
@@ -961,8 +952,12 @@
   spacing: 14px;
   min-width: 300px;
 }
+/* One left edge for everything, the same as the menu items below
+   (12px): sections are moved in 6px, process rows keep 6px of padding so
+   their hover reaches out to where the content starts */
 .rsx-sysmon-stat {
   spacing: 6px;
+  padding: 0 6px;
 }
 .rsx-sysmon-stat-title,
 .rsx-sysmon-section {
@@ -1014,11 +1009,13 @@
   padding: 2px 6px;
   border-radius: 6px;
 }
-/* (St breaks on negative margins: the section title and hint are moved in
-   to line up with the rows instead) */
 .rsx-sysmon-procs .rsx-sysmon-section,
 .rsx-sysmon-procs .rsx-sysmon-hint {
-  padding-left: 6px;
+  padding: 0 6px;
+}
+/* title to rows as far as a title to its bar */
+.rsx-sysmon-procs .rsx-sysmon-section {
+  padding-bottom: 3px;
 }
 .rsx-sysmon-proc > StBoxLayout {
   spacing: 12px;
@@ -1029,9 +1026,9 @@
 .rsx-sysmon-proc-denied .rsx-sysmon-proc-cpu {
   color: rgba(255, 255, 255, 0.55);
 }
-.rsx-sysmon-hint {
+.rsx-sysmon-procs .rsx-sysmon-hint {
   font-size: 8pt;
-  padding-top: 4px;
+  padding-top: 3px;
 }
 .rsx-sysmon-proc-mem {
   color: rgba(255, 255, 255, 0.55);

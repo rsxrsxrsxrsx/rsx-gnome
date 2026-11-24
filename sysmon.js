@@ -221,6 +221,18 @@ function formatBytes(bytes, perSecond = false) {
     return `${bytes.toFixed(digits)} ${units[i]}`;
 }
 
+// "150 К", "1,2 М": short enough for the top bar, per second implied.
+function shortRate(bytes) {
+    const units = [_('B'), _('K'), _('M'), _('G')];
+    let i = 0;
+    while (bytes >= 1000 && i < units.length - 1) {
+        bytes /= 1024;
+        i++;
+    }
+    const digits = i === 0 || bytes >= 10 ? 0 : 1;
+    return `${bytes.toFixed(digits)} ${units[i]}`;
+}
+
 function level(fraction) {
     if (fraction >= 0.9)
         return 'rsx-sysmon-hot';
@@ -362,19 +374,9 @@ export class SystemMonitor {
         this._cpuLabel = this._panelItem(box, 'rsx-cpu', _('Processor'));
         this._ramLabel = this._panelItem(box, 'rsx-memory', _('Memory'));
         this._tempLabel = this._panelItem(box, 'rsx-temperature', _('Temperature'));
-        // Network: download over upload, two small lines.
-        const net = new St.BoxLayout({
-            orientation: Clutter.Orientation.VERTICAL,
-            style_class: 'rsx-sysmon-item rsx-sysmon-net',
-            y_align: Clutter.ActorAlign.CENTER,
-            accessible_name: _('Network'),
-        });
-        this._downLabel = label('', 'rsx-sysmon-net-line');
-        this._upLabel = label('', 'rsx-sysmon-net-line');
-        net.add_child(this._downLabel);
-        net.add_child(this._upLabel);
-        box.add_child(net);
-        this._netItem = net;
+        // Network: the download speed, like the others; upload is in the menu.
+        this._downLabel = this._panelItem(box, 'rsx-download', _('Network'));
+        this._netItem = this._downLabel.get_parent();
         this._tempItem = this._tempLabel.get_parent();
         this._ramItem = this._ramLabel.get_parent();
         this._button.add_child(box);
@@ -603,8 +605,7 @@ export class SystemMonitor {
         const down = Math.max(0, (net.rx - this._prevNet.rx) / seconds);
         const up = Math.max(0, (net.tx - this._prevNet.tx) / seconds);
         this._prevNet = {...net, time: now};
-        this._downLabel.text = `↓ ${formatBytes(down, true)}`;
-        this._upLabel.text = `↑ ${formatBytes(up, true)}`;
+        this._downLabel.text = shortRate(down);
         this._fit();
 
         this._graph.push(all, memFraction);
@@ -628,7 +629,10 @@ export class SystemMonitor {
         this._memStat.sub.visible = mem.swapTotal > 0;
         this._memStat.sub.text = `${_('Swap')}  ${formatBytes(mem.swapUsed)} / ${formatBytes(mem.swapTotal)}`;
 
-        this._netStat.value.text = `↓ ${formatBytes(down, true)}   ↑ ${formatBytes(up, true)}`;
+        this._netStat.value.text = `↓ ${formatBytes(down, true)}  ·  ↑ ${formatBytes(up, true)}`;
+        this._netStat.sub.visible = true;
+        this._netStat.sub.text =
+            `${_('Since boot')}  ↓ ${formatBytes(net.rx)}  ·  ↑ ${formatBytes(net.tx)}`;
 
         const space = readSpace();
         this._diskStat.actor.visible = !!space;
