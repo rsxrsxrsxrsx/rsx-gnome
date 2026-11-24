@@ -381,10 +381,13 @@ export class SystemMonitor {
         this._buildMenu();
 
         Main.panel.addToStatusArea('rsx-sysmon', this._button, 0, 'right');
-        // Tray icons (AppIndicator) also go to the start: stay left of them.
-        Main.panel._rightBox.connectObject('child-added', () => this._keepFirst(), this);
+        // Like on a Mac: tray icons first, then the monitor, then the system
+        // ones. Tray icons come and go, so place it again each time.
+        Main.panel._rightBox.connectObject(
+            'child-added', () => this._keepPlace(),
+            'child-removed', () => this._keepPlace(), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._fit(), this);
-        this._keepFirst();
+        this._keepPlace();
 
         this._settings.connectObject('changed::system-monitor-network',
             () => this._syncNetVisible(), this);
@@ -423,11 +426,25 @@ export class SystemMonitor {
         return value;
     }
 
-    _keepFirst() {
+    // Right before the system indicators (keyboard layout, quick settings,
+    // the clock), after the tray icons.
+    _keepPlace() {
         const container = this._button?.container;
         const right = Main.panel._rightBox;
-        if (container?.get_parent() === right && right.get_child_at_index(0) !== container)
-            right.set_child_at_index(container, 0);
+        if (container?.get_parent() !== right || this._placing)
+            return;
+        const area = Main.panel.statusArea;
+        const system = new Set(['dwellClick', 'a11y', 'keyboard', 'quickSettings', 'dateMenu',
+            'screenRecording', 'screenSharing'].map(role => area[role]?.container).filter(Boolean));
+        const children = right.get_children().filter(c => c !== container);
+        let index = children.findIndex(c => system.has(c));
+        if (index < 0)
+            index = children.length;
+        if (right.get_child_at_index(index) === container)
+            return;
+        this._placing = true;
+        right.set_child_at_index(container, index);
+        this._placing = false;
     }
 
     _syncNetVisible() {

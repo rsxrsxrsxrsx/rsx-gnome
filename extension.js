@@ -861,10 +861,30 @@ class ClockRight {
         // The clock keeps room on both sides for the unread dot when it's
         // centered; at the edge that only looks like a gap.
         Main.panel.statusArea.dateMenu.add_style_class_name('rsx-clock-right');
+        this._bellFirst();
+    }
+
+    // The unread bell goes before the clock, so the clock ends the bar; the
+    // empty pad that kept the clock centered isn't needed here.
+    _bellFirst() {
+        const bell = Main.panel.statusArea.dateMenu?._indicator;
+        const box = bell?.get_parent();
+        if (!box || box.get_child_at_index(0) === bell)
+            return;
+        this._pad = box.get_child_at_index(0);
+        this._padBox = box;
+        box.remove_child(this._pad);
+        box.set_child_at_index(bell, 0);
     }
 
     disable() {
         Main.sessionMode.disconnectObject(this);
+        const bell = Main.panel.statusArea.dateMenu?._indicator;
+        if (this._padBox && bell?.get_parent() === this._padBox) {
+            this._padBox.set_child_at_index(bell, -1);
+            this._padBox.insert_child_at_index(this._pad, 0);
+        }
+        this._pad = this._padBox = null;
         const clock = Main.panel.statusArea.dateMenu?.container;
         if (clock && clock.get_parent() === Main.panel._rightBox) {
             Main.panel._rightBox.remove_child(clock);
