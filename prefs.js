@@ -130,10 +130,10 @@ export default class RsxPreferences extends ExtensionPreferences {
         const look = group(page, _('Appearance'));
         look.add(checkRow(settings, 'dynamic-island', _('Dynamic island'),
             _('A black pill at the top for music, timers, notifications and system events')));
-        const clip = checkRow(settings, 'island-clipboard', _('Copied notice'),
+        const copied = checkRow(settings, 'island-clipboard', _('Copied notice'),
             _('A short "Copied" in the island when you copy something'));
-        settings.bind('dynamic-island', clip, 'sensitive', Gio.SettingsBindFlags.GET);
-        look.add(clip);
+        settings.bind('dynamic-island', copied, 'sensitive', Gio.SettingsBindFlags.GET);
+        look.add(copied);
         look.add(checkRow(settings, 'shake-cursor', _('Shake to find the cursor'),
             _('Shake the mouse and the pointer grows big for a moment')));
         look.add(checkRow(settings, 'mac-osd', _('macOS-style volume popup'),
